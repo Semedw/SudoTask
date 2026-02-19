@@ -8,6 +8,7 @@ from .serializers import SubmissionSerializer, SubmitCodeSerializer
 from .permissions import IsSubmissionOwner, CanSubmitCode
 from tasks.models import Task
 from judge.tasks import execute_submission
+from judge.runner import CodeRunner, compare_outputs
 
 
 class SubmissionViewSet(viewsets.ReadOnlyModelViewSet):
@@ -84,3 +85,82 @@ class SubmissionViewSet(viewsets.ReadOnlyModelViewSet):
             SubmissionSerializer(submission).data,
             status=status.HTTP_201_CREATED
         )
+
+    @action(detail=False, methods=['post'], url_path='tasks/(?P<task_id>[^/.]+)/test')
+    def test(self, request, task_id=None):
+        """Test code against visible test cases only (synchronous, no DB save)."""
+        if not task_id:
+            task_id = request.resolver_match.kwargs.get('task_id')
+        if not task_id:
+            return Response({'detail': 'task_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        task = get_object_or_404(Task, id=task_id)
+
+        # Check membership
+        if not (task.classroom.memberships.filter(student=request.user).exists() or
+                task.classroom.teacher == request.user):
+            return Response({'detail': 'You are not a member of this class.'},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        serializer = SubmitCodeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        code = serializer.validated_data['code']
+        language = serializer.validated_data['language']
+
+        # Only run against PUBLIC (non-hidden) test cases
+        testcases = task.testcases.filter(is_hidden=False).order_by('order')
+
+        runner = CodeRunner()
+        results = []
+        passed_count = 0
+
+        for tc in testcases:
+            try:
+                if runner.client:
+                    run_result = runner.run_python(code=code, input_data=tc.input_data, timeout=10)
+                else:
+                    run_result = runner._run_local_code(code=code, language=language,
+                                                       input_data=tc.input_data, timeout=10)
+
+                passed = compare_outputs(run_result['stdout'], tc.expected_output)
+                if passed:
+                    passed_count += 1
+
+                results.append({
+                    'testcase': {
+                        'id': tc.id,
+                        'order': tc.order,
+                        'input_data': tc.input_data,
+                        'expected_output': tc.expected_output,
+                        'is_hidden': False,
+                        'weight_points': tc.weight_points,
+                    },
+                    'passed': passed,
+                    'student_output': run_result['stdout'],
+                    'expected_output': tc.expected_output,
+                    'stderr': run_result['stderr'],
+                    'runtime_ms': run_result.get('runtime_ms', 0),
+                })
+            except Exception as e:
+                results.append({
+                    'testcase': {
+                        'id': tc.id,
+                        'order': tc.order,
+                        'input_data': tc.input_data,
+                        'expected_output': tc.expected_output,
+                        'is_hidden': False,
+                        'weight_points': tc.weight_points,
+                    },
+                    'passed': False,
+                    'student_output': '',
+                    'expected_output': tc.expected_output,
+                    'stderr': str(e),
+                    'runtime_ms': 0,
+                })
+
+        return Response({
+            'results': results,
+            'total_tests': len(results),
+            'passed_tests': passed_count,
+        })

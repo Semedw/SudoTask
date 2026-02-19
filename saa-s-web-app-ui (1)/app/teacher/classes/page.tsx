@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Plus, Copy, Users, ExternalLink, CalendarDays } from "lucide-react"
 import { toast } from "sonner"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -18,24 +19,67 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { classes } from "@/lib/mock-data"
-
-function generateClassId() {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-  let result = "CLS-"
-  for (let i = 0; i < 5; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length))
-  }
-  return result
-}
+import { Skeleton } from "@/components/ui/skeleton"
+import { getClasses, createClass } from "@/lib/api/classes"
+import { ClassRoom } from "@/lib/types"
 
 export default function ClassesPage() {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
-  const [newClassId] = useState(generateClassId)
+  const [classes, setClasses] = useState<ClassRoom[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isCreating, setIsCreating] = useState(false)
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+  })
 
-  const copyClassId = (id: string) => {
-    navigator.clipboard.writeText(id)
-    toast.success("Class ID copied to clipboard")
+  useEffect(() => {
+    fetchClasses()
+  }, [])
+
+  async function fetchClasses() {
+    try {
+      setIsLoading(true)
+      const data = await getClasses()
+      setClasses(data)
+    } catch (error: any) {
+      const errorMessage = error?.message || (typeof error === "string" ? error : "Failed to fetch classes")
+      toast.error(errorMessage)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  async function handleCreateClass() {
+    if (!formData.name.trim()) {
+      toast.error("Please enter a class name")
+      return
+    }
+
+    try {
+      setIsCreating(true)
+      const newClass = await createClass(formData)
+      toast.success("Class created successfully")
+      setClasses([newClass, ...classes])
+      setOpen(false)
+      setFormData({ name: "", description: "" })
+    } catch (error: any) {
+      const errorMessage = error?.message || (typeof error === "string" ? error : "Failed to create class")
+      toast.error(errorMessage)
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
+  const copyClassId = (code: string) => {
+    navigator.clipboard.writeText(code)
+    toast.success("Class code copied to clipboard")
+  }
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
   }
 
   return (
@@ -55,37 +99,49 @@ export default function ClassesPage() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Create New Class</DialogTitle>
-              <DialogDescription>Set up a new class and share the ID with your students.</DialogDescription>
+              <DialogDescription>Set up a new class and share the code with your students.</DialogDescription>
             </DialogHeader>
             <div className="flex flex-col gap-4 py-4">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="class-name">Class Name</Label>
-                <Input id="class-name" placeholder="e.g., Introduction to Java" />
+                <Input 
+                  id="class-name" 
+                  placeholder="e.g., Introduction to Java" 
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  disabled={isCreating}
+                />
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="class-desc">Description</Label>
-                <Textarea id="class-desc" placeholder="Brief description of the class..." rows={3} />
+                <Textarea 
+                  id="class-desc" 
+                  placeholder="Brief description of the class..." 
+                  rows={3}
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  disabled={isCreating}
+                />
               </div>
-              <div className="flex flex-col gap-2">
-                <Label>Class ID (auto-generated)</Label>
-                <div className="flex items-center gap-2">
-                  <Input value={newClassId} readOnly className="font-mono" />
-                  <Button variant="outline" size="icon" onClick={() => copyClassId(newClassId)}>
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">Share this ID with students so they can join</p>
-              </div>
+              <p className="text-xs text-muted-foreground">A unique class code will be generated automatically after creation</p>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button onClick={() => { setOpen(false); toast.success("Class created successfully") }}>Create Class</Button>
+              <Button variant="outline" onClick={() => setOpen(false)} disabled={isCreating}>Cancel</Button>
+              <Button onClick={handleCreateClass} disabled={isCreating}>
+                {isCreating ? "Creating..." : "Create Class"}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
 
-      {classes.length === 0 ? (
+      {isLoading ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-48" />
+          ))}
+        </div>
+      ) : classes.length === 0 ? (
         <Card className="border-border border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-16">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
@@ -106,7 +162,7 @@ export default function ClassesPage() {
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <CardTitle className="text-foreground">{cls.name}</CardTitle>
-                  <Badge variant="secondary" className="shrink-0 font-mono text-xs">{cls.id}</Badge>
+                  <Badge variant="secondary" className="shrink-0 font-mono text-xs">{cls.class_code}</Badge>
                 </div>
                 <CardDescription className="line-clamp-2">{cls.description}</CardDescription>
               </CardHeader>
@@ -114,19 +170,19 @@ export default function ClassesPage() {
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   <div className="flex items-center gap-1.5">
                     <Users className="h-3.5 w-3.5" />
-                    <span>{cls.studentCount} students</span>
+                    <span>{cls.student_count} students</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <CalendarDays className="h-3.5 w-3.5" />
-                    <span>{cls.createdAt}</span>
+                    <span>{formatDate(cls.created_at)}</span>
                   </div>
                 </div>
                 <div className="mt-4 flex items-center gap-2">
-                  <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={() => copyClassId(cls.id)}>
+                  <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={() => copyClassId(cls.class_code)}>
                     <Copy className="h-3.5 w-3.5" />
-                    Copy ID
+                    Copy Code
                   </Button>
-                  <Button size="sm" className="flex-1 gap-1.5">
+                  <Button size="sm" className="flex-1 gap-1.5" onClick={() => router.push(`/teacher/classes/${cls.id}`)}>
                     <ExternalLink className="h-3.5 w-3.5" />
                     Open Class
                   </Button>

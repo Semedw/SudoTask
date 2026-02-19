@@ -42,12 +42,22 @@ def execute_submission(submission_id: int):
     # Execute each testcase
     for testcase in testcases:
         try:
-            # Run code with testcase input
-            result = runner.run_python(
-                code=submission.code,
-                input_data=testcase.input_data,
-                timeout=getattr(submission, 'timeout', 2)
-            )
+            # Run code with testcase input (language-aware)
+            if runner.client:
+                # Docker path (currently only python)
+                result = runner.run_python(
+                    code=submission.code,
+                    input_data=testcase.input_data,
+                    timeout=getattr(submission, 'timeout', 10)
+                )
+            else:
+                # Local fallback – supports multiple languages
+                result = runner._run_local_code(
+                    code=submission.code,
+                    language=submission.language,
+                    input_data=testcase.input_data,
+                    timeout=10
+                )
             
             # Compare outputs
             passed = compare_outputs(result['stdout'], testcase.expected_output)

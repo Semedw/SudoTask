@@ -1,9 +1,16 @@
+"use client"
+
 import Link from "next/link"
+import { useEffect, useMemo, useState } from "react"
 import { BookOpen, User, Clock, CheckCircle2, XCircle, MinusCircle } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { studentProfile, studentTasks } from "@/lib/mock-data"
+import { studentProfile } from "@/lib/mock-data"
+import { getTasks } from "@/lib/api/tasks"
+import { getSubmissions } from "@/lib/api/submissions"
+import { Task, Submission } from "@/lib/types"
+import { toast } from "sonner"
 
 const statusConfig = {
   passed: {
@@ -29,7 +36,66 @@ const difficultyColors: Record<string, string> = {
   Hard: "bg-destructive/10 text-destructive border-destructive/20",
 }
 
+type DisplayTask = {
+  id: number
+  title: string
+  difficultyLabel: "Easy" | "Medium" | "Hard"
+  status: "passed" | "attempted" | "not-started"
+  deadline?: string | null
+  points?: number
+}
+
 export default function StudentDashboardPage() {
+  const [tasks, setTasks] = useState<DisplayTask[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const loadTasks = async () => {
+      try {
+        setIsLoading(true)
+        const [data, submissions] = await Promise.all([
+          getTasks(),
+          getSubmissions(),
+        ])
+
+        // Build a map: taskId → best status ("passed" > "failed"/"error" > none)
+        const statusByTask = new Map<number, "passed" | "attempted">()
+        for (const sub of submissions) {
+          const tid = typeof sub.task === "object" ? sub.task.id : sub.task
+          if (sub.status === "passed") {
+            statusByTask.set(tid, "passed")
+          } else if (!statusByTask.has(tid)) {
+            statusByTask.set(tid, "attempted")
+          }
+        }
+
+        const mapped: DisplayTask[] = data.map((task: Task) => {
+          const difficultyLabel =
+            task.difficulty === "EASY" ? "Easy" : task.difficulty === "MEDIUM" ? "Medium" : "Hard"
+
+          const taskStatus = statusByTask.get(task.id) ?? "not-started"
+
+          return {
+            id: task.id,
+            title: task.title,
+            difficultyLabel,
+            status: taskStatus,
+            deadline: task.deadline,
+          }
+        })
+
+        setTasks(mapped)
+      } catch (error: any) {
+        const errorMessage = error?.message || (typeof error === "string" ? error : "Failed to load tasks")
+        toast.error(errorMessage)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadTasks()
+  }, [])
+
   return (
     <div className="flex flex-col gap-6">
       <Card className="border-border">
@@ -55,7 +121,16 @@ export default function StudentDashboardPage() {
       </div>
 
       <div className="flex flex-col gap-3">
-        {studentTasks.map((task) => {
+        {isLoading ? (
+          <Card className="border-border">
+            <CardContent className="p-6 text-sm text-muted-foreground">Loading tasks...</CardContent>
+          </Card>
+        ) : tasks.length === 0 ? (
+          <Card className="border-border">
+            <CardContent className="p-6 text-sm text-muted-foreground">No tasks available.</CardContent>
+          </Card>
+        ) : (
+          tasks.map((task) => {
           const config = statusConfig[task.status]
           return (
             <Card key={task.id} className="border-border transition-shadow hover:shadow-md">
@@ -71,10 +146,9 @@ export default function StudentDashboardPage() {
                   <div>
                     <h3 className="font-medium text-foreground">{task.title}</h3>
                     <div className="mt-1 flex flex-wrap items-center gap-2">
-                      <Badge variant="outline" className={difficultyColors[task.difficulty]}>
-                        {task.difficulty}
+                      <Badge variant="outline" className={difficultyColors[task.difficultyLabel]}>
+                        {task.difficultyLabel}
                       </Badge>
-                      <span className="text-xs text-muted-foreground">{task.points} points</span>
                       {task.deadline && (
                         <span className="flex items-center gap-1 text-xs text-muted-foreground">
                           <Clock className="h-3 w-3" />
@@ -87,7 +161,7 @@ export default function StudentDashboardPage() {
                 <div className="flex items-center gap-3">
                   <Badge className={config.badgeClass}>{config.label}</Badge>
                   <Button size="sm" variant={task.status === "not-started" ? "default" : "outline"} asChild>
-                    <Link href="/solve">
+                    <Link href={`/solve?taskId=${task.id}`}>
                       {task.status === "not-started" ? "Solve" : "View"}
                     </Link>
                   </Button>
@@ -95,7 +169,8 @@ export default function StudentDashboardPage() {
               </CardContent>
             </Card>
           )
-        })}
+        })
+        )}
       </div>
     </div>
   )

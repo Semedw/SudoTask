@@ -1,19 +1,43 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Plus } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { Plus, Loader2 } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { tasks } from "@/lib/mock-data"
+import { getTasks } from "@/lib/api/tasks"
+import { Task } from "@/lib/types"
 
 const difficultyColors: Record<string, string> = {
-  Easy: "bg-success/10 text-success border-success/20",
-  Medium: "bg-warning/10 text-warning border-warning/20",
-  Hard: "bg-destructive/10 text-destructive border-destructive/20",
+  EASY: "bg-success/10 text-success border-success/20",
+  MEDIUM: "bg-warning/10 text-warning border-warning/20",
+  HARD: "bg-destructive/10 text-destructive border-destructive/20",
 }
 
 export default function TasksPage() {
+  const router = useRouter()
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchTasks() {
+      try {
+        setIsLoading(true)
+        const data = await getTasks()
+        setTasks(data)
+      } catch (error: any) {
+        toast.error(error.message || "Failed to load tasks")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchTasks()
+  }, [])
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -34,52 +58,65 @@ export default function TasksPage() {
           <CardTitle className="text-foreground">All Tasks</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Title</TableHead>
-                <TableHead>Class</TableHead>
-                <TableHead>Difficulty</TableHead>
-                <TableHead className="text-center">Points</TableHead>
-                <TableHead className="text-center">Submissions</TableHead>
-                <TableHead>Pass Rate</TableHead>
-                <TableHead>Deadline</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {tasks.map((task) => (
-                <TableRow key={task.id}>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium text-foreground">{task.title}</p>
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        {task.tags.map((tag) => (
-                          <Badge key={tag} variant="secondary" className="text-xs font-normal">
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{task.className}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={difficultyColors[task.difficulty]}>
-                      {task.difficulty}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-center text-foreground">{task.points}</TableCell>
-                  <TableCell className="text-center text-muted-foreground">{task.submissions}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Progress value={task.passRate} className="h-2 w-16" />
-                      <span className="text-xs text-muted-foreground">{task.passRate}%</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{task.deadline || "No deadline"}</TableCell>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : tasks.length === 0 ? (
+            <div className="py-12 text-center text-sm text-muted-foreground">
+              No tasks yet. Create your first task to get started.
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Class</TableHead>
+                  <TableHead>Difficulty</TableHead>
+                  <TableHead className="text-center">Submissions</TableHead>
+                  <TableHead>Deadline</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {tasks.map((task) => (
+                  <TableRow
+                    key={task.id}
+                    className="cursor-pointer"
+                    onClick={() => router.push(`/teacher/tasks/${task.id}`)}
+                  >
+                    <TableCell>
+                      <div>
+                        <p className="font-medium text-foreground">{task.title}</p>
+                        {task.tags && task.tags.length > 0 && (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {task.tags.map((tag) => (
+                              <Badge key={tag} variant="secondary" className="text-xs font-normal">
+                                {tag}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{task.classroom?.name}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={difficultyColors[task.difficulty]}>
+                        {task.difficulty}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-center text-muted-foreground">
+                      {task.submission_count ?? 0}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {task.deadline
+                        ? new Date(task.deadline).toLocaleDateString()
+                        : "No deadline"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

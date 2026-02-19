@@ -10,10 +10,44 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { useAuthStore } from "@/lib/auth/authStore"
+import { toast } from "sonner"
 
 export default function LoginPage() {
   const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const login = useAuthStore((state) => state.login)
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setIsLoading(true)
+
+    const formData = new FormData(e.currentTarget)
+    const email = formData.get("email") as string
+    const password = formData.get("password") as string
+
+    try {
+      await login(email, password)
+      
+      // Get user to determine redirect
+      const user = useAuthStore.getState().user
+      
+      toast.success("Login successful!")
+      
+      // Redirect based on role
+      if (user?.role === "TEACHER") {
+        router.push("/teacher")
+      } else if (user?.role === "STUDENT") {
+        router.push("/student")
+      }
+    } catch (error: any) {
+      const errorMessage = error?.message || (typeof error === "string" ? error : "Login failed. Please check your credentials.")
+      toast.error(errorMessage)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-muted/30">
@@ -42,15 +76,19 @@ export default function LoginPage() {
 
               <TabsContent value="teacher">
                 <form
-                  onSubmit={(e) => {
-                    e.preventDefault()
-                    router.push("/teacher")
-                  }}
+                  onSubmit={handleSubmit}
                   className="flex flex-col gap-4"
                 >
                   <div className="flex flex-col gap-2">
                     <Label htmlFor="teacher-email">Email</Label>
-                    <Input id="teacher-email" type="email" placeholder="you@university.edu" defaultValue="sarah.chen@university.edu" />
+                    <Input 
+                      id="teacher-email" 
+                      name="email"
+                      type="email" 
+                      placeholder="you@university.edu" 
+                      required
+                      disabled={isLoading}
+                    />
                   </div>
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center justify-between">
@@ -60,9 +98,11 @@ export default function LoginPage() {
                     <div className="relative">
                       <Input
                         id="teacher-password"
+                        name="password"
                         type={showPassword ? "text" : "password"}
                         placeholder="Enter your password"
-                        defaultValue="password123"
+                        required
+                        disabled={isLoading}
                       />
                       <Button
                         type="button"
@@ -70,26 +110,33 @@ export default function LoginPage() {
                         size="icon"
                         className="absolute right-0 top-0 h-full px-3 text-muted-foreground hover:text-foreground"
                         onClick={() => setShowPassword(!showPassword)}
+                        disabled={isLoading}
                       >
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </Button>
                     </div>
                   </div>
-                  <Button type="submit" className="mt-2 w-full">Sign in as Teacher</Button>
+                  <Button type="submit" className="mt-2 w-full" disabled={isLoading}>
+                    {isLoading ? "Signing in..." : "Sign in as Teacher"}
+                  </Button>
                 </form>
               </TabsContent>
 
               <TabsContent value="student">
                 <form
-                  onSubmit={(e) => {
-                    e.preventDefault()
-                    router.push("/student")
-                  }}
+                  onSubmit={handleSubmit}
                   className="flex flex-col gap-4"
                 >
                   <div className="flex flex-col gap-2">
                     <Label htmlFor="student-email">Email</Label>
-                    <Input id="student-email" type="email" placeholder="you@student.edu" defaultValue="alex.johnson@student.edu" />
+                    <Input 
+                      id="student-email" 
+                      name="email"
+                      type="email" 
+                      placeholder="you@student.edu" 
+                      required
+                      disabled={isLoading}
+                    />
                   </div>
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center justify-between">
@@ -99,9 +146,11 @@ export default function LoginPage() {
                     <div className="relative">
                       <Input
                         id="student-password"
+                        name="password"
                         type={showPassword ? "text" : "password"}
                         placeholder="Enter your password"
-                        defaultValue="password123"
+                        required
+                        disabled={isLoading}
                       />
                       <Button
                         type="button"
@@ -109,12 +158,15 @@ export default function LoginPage() {
                         size="icon"
                         className="absolute right-0 top-0 h-full px-3 text-muted-foreground hover:text-foreground"
                         onClick={() => setShowPassword(!showPassword)}
+                        disabled={isLoading}
                       >
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </Button>
                     </div>
                   </div>
-                  <Button type="submit" className="mt-2 w-full">Sign in as Student</Button>
+                  <Button type="submit" className="mt-2 w-full" disabled={isLoading}>
+                    {isLoading ? "Signing in..." : "Sign in as Student"}
+                  </Button>
                 </form>
               </TabsContent>
             </Tabs>

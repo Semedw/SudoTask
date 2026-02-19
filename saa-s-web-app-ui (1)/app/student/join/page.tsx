@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Terminal } from "lucide-react"
@@ -8,9 +9,34 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { joinClass } from "@/lib/api/classes"
+import { toast } from "sonner"
 
 export default function StudentJoinPage() {
   const router = useRouter()
+  const [isJoining, setIsJoining] = useState(false)
+  const [classCode, setClassCode] = useState("")
+
+  async function handleJoinClass(e: React.FormEvent) {
+    e.preventDefault()
+    
+    if (!classCode.trim()) {
+      toast.error("Please enter a class code")
+      return
+    }
+
+    try {
+      setIsJoining(true)
+      await joinClass({ class_code: classCode.trim() })
+      toast.success("Successfully joined class!")
+      router.push("/student")
+    } catch (error: any) {
+      const errorMessage = error?.message || (typeof error === "string" ? error : "Failed to join class. Please check the code.")
+      toast.error(errorMessage)
+    } finally {
+      setIsJoining(false)
+    }
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-muted/30">
@@ -28,26 +54,26 @@ export default function StudentJoinPage() {
         <Card className="w-full max-w-md border-border">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl text-foreground">Join a Class</CardTitle>
-            <CardDescription>Enter your name and the class ID provided by your teacher</CardDescription>
+            <CardDescription>Enter the class code provided by your teacher</CardDescription>
           </CardHeader>
           <CardContent>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault()
-                router.push("/student")
-              }}
-              className="flex flex-col gap-4"
-            >
+            <form onSubmit={handleJoinClass} className="flex flex-col gap-4">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="full-name">Full Name</Label>
-                <Input id="full-name" placeholder="Alex Johnson" />
+                <Label htmlFor="class-code">Class Code</Label>
+                <Input 
+                  id="class-code" 
+                  placeholder="CLS-3A7K9" 
+                  className="font-mono uppercase" 
+                  value={classCode}
+                  onChange={(e) => setClassCode(e.target.value.toUpperCase())}
+                  required
+                  disabled={isJoining}
+                />
+                <p className="text-xs text-muted-foreground">Ask your teacher for the class code</p>
               </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="class-id">Class ID</Label>
-                <Input id="class-id" placeholder="CLS-3A7K9" className="font-mono" />
-                <p className="text-xs text-muted-foreground">Ask your teacher for the class ID</p>
-              </div>
-              <Button type="submit" className="mt-2 w-full">Join Class</Button>
+              <Button type="submit" className="mt-2 w-full" disabled={isJoining}>
+                {isJoining ? "Joining..." : "Join Class"}
+              </Button>
             </form>
             <p className="mt-6 text-center text-sm text-muted-foreground">
               Already have an account?{" "}

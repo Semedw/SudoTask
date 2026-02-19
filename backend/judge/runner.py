@@ -124,8 +124,8 @@ class CodeRunner:
         Fallback local execution (UNSAFE - only for development).
         """
         import subprocess
-        import signal
-        
+        import tempfile
+
         result = {
             'stdout': '',
             'stderr': '',
@@ -133,41 +133,179 @@ class CodeRunner:
             'runtime_ms': 0,
             'memory_kb': None,
         }
-        
+
+        # Write code to a temp file so multi-line scripts work correctly
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+            f.write(code)
+            code_file = f.name
+
         start_time = time.time()
-        
+
         try:
             process = subprocess.Popen(
-                ['python3', '-c', code],
+                ['python3', code_file],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                timeout=timeout
             )
-            
+
             stdout, stderr = process.communicate(input=input_data, timeout=timeout)
             exit_code = process.returncode
-            
+
             result['stdout'] = stdout
             result['stderr'] = stderr
             result['exit_code'] = exit_code
-            
+
         except subprocess.TimeoutExpired:
             process.kill()
+            process.communicate()
             result['stderr'] = f'Execution timeout after {timeout} seconds'
             result['exit_code'] = 124
         except Exception as e:
             result['stderr'] = str(e)
             result['exit_code'] = 1
-        
+        finally:
+            if os.path.exists(code_file):
+                os.unlink(code_file)
+
         result['runtime_ms'] = int((time.time() - start_time) * 1000)
-        
+
         return result
     
     def normalize_output(self, output: str) -> str:
         """Normalize output for comparison (trim whitespace, normalize newlines)."""
         return '\n'.join(line.rstrip() for line in output.strip().splitlines())
+
+    # ---- multi-language local execution helpers ----
+
+    def _run_local_code(self, code: str, language: str, input_data: str, timeout: int) -> Dict:
+        """Route to the correct local runner based on language."""
+        if language == 'python':
+            return self._run_local_python(code, input_data, timeout)
+        elif language == 'cpp':
+            return self._run_local_cpp(code, input_data, timeout)
+        elif language == 'java':
+            return self._run_local_java(code, input_data, timeout)
+        elif language == 'javascript':
+            return self._run_local_javascript(code, input_data, timeout)
+        else:
+            return {
+                'stdout': '',
+                'stderr': f'Unsupported language: {language}',
+                'exit_code': 1,
+                'runtime_ms': 0,
+                'memory_kb': None,
+            }
+
+    def _run_local_cpp(self, code: str, input_data: str, timeout: int) -> Dict:
+        import subprocess, tempfile
+        result = {'stdout': '', 'stderr': '', 'exit_code': 0, 'runtime_ms': 0, 'memory_kb': None}
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.cpp', delete=False) as f:
+            f.write(code)
+            src = f.name
+        exe = src.replace('.cpp', '')
+
+        start_time = time.time()
+        try:
+            # Compile
+            comp = subprocess.run(['g++', '-o', exe, src], capture_output=True, text=True, timeout=timeout)
+            if comp.returncode != 0:
+                result['stderr'] = comp.stderr
+                result['exit_code'] = comp.returncode
+                return result
+            # Run
+            proc = subprocess.Popen([exe], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            stdout, stderr = proc.communicate(input=input_data, timeout=timeout)
+            result['stdout'] = stdout
+            result['stderr'] = stderr
+            result['exit_code'] = proc.returncode
+        except subprocess.TimeoutExpired:
+            result['stderr'] = f'Execution timeout after {timeout} seconds'
+            result['exit_code'] = 124
+        except FileNotFoundError:
+            result['stderr'] = 'g++ compiler not found in container'
+            result['exit_code'] = 1
+        except Exception as e:
+            result['stderr'] = str(e)
+            result['exit_code'] = 1
+        finally:
+            for p in (src, exe):
+                if os.path.exists(p):
+                    os.unlink(p)
+        result['runtime_ms'] = int((time.time() - start_time) * 1000)
+        return result
+
+    def _run_local_java(self, code: str, input_data: str, timeout: int) -> Dict:
+        import subprocess, tempfile, re
+        result = {'stdout': '', 'stderr': '', 'exit_code': 0, 'runtime_ms': 0, 'memory_kb': None}
+
+        # Extract public class name
+        match = re.search(r'public\s+class\s+(\w+)', code)
+        class_name = match.group(1) if match else 'Solution'
+
+        tmpdir = tempfile.mkdtemp()
+        src = os.path.join(tmpdir, f'{class_name}.java')
+        with open(src, 'w') as f:
+            f.write(code)
+
+        start_time = time.time()
+        try:
+            comp = subprocess.run(['javac', src], capture_output=True, text=True, timeout=timeout)
+            if comp.returncode != 0:
+                result['stderr'] = comp.stderr
+                result['exit_code'] = comp.returncode
+                return result
+            proc = subprocess.Popen(['java', '-cp', tmpdir, class_name], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            stdout, stderr = proc.communicate(input=input_data, timeout=timeout)
+            result['stdout'] = stdout
+            result['stderr'] = stderr
+            result['exit_code'] = proc.returncode
+        except subprocess.TimeoutExpired:
+            result['stderr'] = f'Execution timeout after {timeout} seconds'
+            result['exit_code'] = 124
+        except FileNotFoundError:
+            result['stderr'] = 'javac/java not found in container'
+            result['exit_code'] = 1
+        except Exception as e:
+            result['stderr'] = str(e)
+            result['exit_code'] = 1
+        finally:
+            import shutil
+            shutil.rmtree(tmpdir, ignore_errors=True)
+        result['runtime_ms'] = int((time.time() - start_time) * 1000)
+        return result
+
+    def _run_local_javascript(self, code: str, input_data: str, timeout: int) -> Dict:
+        import subprocess, tempfile
+        result = {'stdout': '', 'stderr': '', 'exit_code': 0, 'runtime_ms': 0, 'memory_kb': None}
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.js', delete=False) as f:
+            f.write(code)
+            code_file = f.name
+
+        start_time = time.time()
+        try:
+            proc = subprocess.Popen(['node', code_file], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            stdout, stderr = proc.communicate(input=input_data, timeout=timeout)
+            result['stdout'] = stdout
+            result['stderr'] = stderr
+            result['exit_code'] = proc.returncode
+        except subprocess.TimeoutExpired:
+            result['stderr'] = f'Execution timeout after {timeout} seconds'
+            result['exit_code'] = 124
+        except FileNotFoundError:
+            result['stderr'] = 'node not found in container'
+            result['exit_code'] = 1
+        except Exception as e:
+            result['stderr'] = str(e)
+            result['exit_code'] = 1
+        finally:
+            if os.path.exists(code_file):
+                os.unlink(code_file)
+        result['runtime_ms'] = int((time.time() - start_time) * 1000)
+        return result
 
 
 def compare_outputs(student_output: str, expected_output: str) -> bool:

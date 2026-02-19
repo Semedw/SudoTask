@@ -10,10 +10,72 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { useAuthStore } from "@/lib/auth/authStore"
+import { toast } from "sonner"
+import { UserRole } from "@/lib/types"
 
 export default function RegisterPage() {
   const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const register = useAuthStore((state) => state.register)
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>, role: UserRole) => {
+    e.preventDefault()
+    setIsLoading(true)
+
+    const formData = new FormData(e.currentTarget)
+    const fullName = formData.get("fullName") as string
+    const email = formData.get("email") as string
+    const password = formData.get("password") as string
+    const confirmPassword = formData.get("confirmPassword") as string
+
+    // Validate password match
+    if (password !== confirmPassword) {
+      toast.error("Passwords do not match")
+      setIsLoading(false)
+      return
+    }
+
+    // Split full name into first and last name
+    const nameParts = fullName.trim().split(" ")
+    const firstName = nameParts[0] || ""
+    const lastName = nameParts.slice(1).join(" ") || ""
+
+    // Generate username from email
+    const username = email.split("@")[0]
+
+    try {
+      await register({
+        email,
+        username,
+        password,
+        password2: confirmPassword,
+        role,
+        first_name: firstName,
+        last_name: lastName,
+      })
+
+      toast.success("Registration successful!")
+
+      // Redirect based on role
+      if (role === "TEACHER") {
+        router.push("/teacher")
+      } else {
+        router.push("/student")
+      }
+    } catch (error: any) {
+      const message = error.fieldErrors 
+        ? Object.entries(error.fieldErrors).map(([field, errors]: [string, any]) => 
+            `${field}: ${Array.isArray(errors) ? errors.join(", ") : errors}`
+          ).join("\n")
+        : error?.message || (typeof error === "string" ? error : "Registration failed. Please try again.")
+      
+      toast.error(message)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-muted/30">
@@ -42,31 +104,41 @@ export default function RegisterPage() {
 
               <TabsContent value="teacher">
                 <form
-                  onSubmit={(e) => {
-                    e.preventDefault()
-                    router.push("/teacher")
-                  }}
+                  onSubmit={(e) => handleSubmit(e, "TEACHER")}
                   className="flex flex-col gap-4"
                 >
                   <div className="flex flex-col gap-2">
                     <Label htmlFor="teacher-name">Full Name</Label>
-                    <Input id="teacher-name" placeholder="Dr. Sarah Chen" />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="teacher-org">Organization</Label>
-                    <Input id="teacher-org" placeholder="Stanford University" />
+                    <Input 
+                      id="teacher-name" 
+                      name="fullName"
+                      placeholder="Dr. Sarah Chen" 
+                      required
+                      disabled={isLoading}
+                    />
                   </div>
                   <div className="flex flex-col gap-2">
                     <Label htmlFor="teacher-reg-email">Email</Label>
-                    <Input id="teacher-reg-email" type="email" placeholder="you@university.edu" />
+                    <Input 
+                      id="teacher-reg-email" 
+                      name="email"
+                      type="email" 
+                      placeholder="you@university.edu" 
+                      required
+                      disabled={isLoading}
+                    />
                   </div>
                   <div className="flex flex-col gap-2">
                     <Label htmlFor="teacher-reg-password">Password</Label>
                     <div className="relative">
                       <Input
                         id="teacher-reg-password"
+                        name="password"
                         type={showPassword ? "text" : "password"}
                         placeholder="Create a password"
+                        required
+                        disabled={isLoading}
+                        minLength={8}
                       />
                       <Button
                         type="button"
@@ -74,38 +146,67 @@ export default function RegisterPage() {
                         size="icon"
                         className="absolute right-0 top-0 h-full px-3 text-muted-foreground hover:text-foreground"
                         onClick={() => setShowPassword(!showPassword)}
+                        disabled={isLoading}
                       >
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </Button>
                     </div>
                   </div>
-                  <Button type="submit" className="mt-2 w-full">Create Teacher Account</Button>
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="teacher-confirm-password">Confirm Password</Label>
+                    <Input
+                      id="teacher-confirm-password"
+                      name="confirmPassword"
+                      type="password"
+                      placeholder="Confirm your password"
+                      required
+                      disabled={isLoading}
+                      minLength={8}
+                    />
+                  </div>
+                  <Button type="submit" className="mt-2 w-full" disabled={isLoading}>
+                    {isLoading ? "Creating account..." : "Create Teacher Account"}
+                  </Button>
                 </form>
               </TabsContent>
 
               <TabsContent value="student">
                 <form
-                  onSubmit={(e) => {
-                    e.preventDefault()
-                    router.push("/student")
-                  }}
+                  onSubmit={(e) => handleSubmit(e, "STUDENT")}
                   className="flex flex-col gap-4"
                 >
                   <div className="flex flex-col gap-2">
                     <Label htmlFor="student-name">Full Name</Label>
-                    <Input id="student-name" placeholder="Alex Johnson" />
+                    <Input 
+                      id="student-name" 
+                      name="fullName"
+                      placeholder="Alex Johnson" 
+                      required
+                      disabled={isLoading}
+                    />
                   </div>
                   <div className="flex flex-col gap-2">
                     <Label htmlFor="student-reg-email">Email</Label>
-                    <Input id="student-reg-email" type="email" placeholder="you@student.edu" />
+                    <Input 
+                      id="student-reg-email" 
+                      name="email"
+                      type="email" 
+                      placeholder="you@student.edu" 
+                      required
+                      disabled={isLoading}
+                    />
                   </div>
                   <div className="flex flex-col gap-2">
                     <Label htmlFor="student-reg-password">Password</Label>
                     <div className="relative">
                       <Input
                         id="student-reg-password"
+                        name="password"
                         type={showPassword ? "text" : "password"}
                         placeholder="Create a password"
+                        required
+                        disabled={isLoading}
+                        minLength={8}
                       />
                       <Button
                         type="button"
@@ -113,12 +214,27 @@ export default function RegisterPage() {
                         size="icon"
                         className="absolute right-0 top-0 h-full px-3 text-muted-foreground hover:text-foreground"
                         onClick={() => setShowPassword(!showPassword)}
+                        disabled={isLoading}
                       >
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </Button>
                     </div>
                   </div>
-                  <Button type="submit" className="mt-2 w-full">Create Student Account</Button>
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="student-confirm-password">Confirm Password</Label>
+                    <Input
+                      id="student-confirm-password"
+                      name="confirmPassword"
+                      type="password"
+                      placeholder="Confirm your password"
+                      required
+                      disabled={isLoading}
+                      minLength={8}
+                    />
+                  </div>
+                  <Button type="submit" className="mt-2 w-full" disabled={isLoading}>
+                    {isLoading ? "Creating account..." : "Create Student Account"}
+                  </Button>
                 </form>
               </TabsContent>
             </Tabs>

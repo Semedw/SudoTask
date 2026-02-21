@@ -12,8 +12,8 @@ import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
-import { Textarea } from "@/components/ui/textarea"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { CodeEditor } from "@/components/code-editor"
 import { getTask, getTestCases } from "@/lib/api/tasks"
 import { submitCode, testCode, pollSubmission } from "@/lib/api/submissions"
 import { Task, TestCase, Language, Submission, TestCodeResponse } from "@/lib/types"
@@ -381,13 +381,13 @@ export default function SolveTaskPage() {
 
           {/* Code Tab */}
           {activeRightTab === "code" && (
-            <div className="flex-1 overflow-hidden p-4">
-              <Textarea
+            <div className="flex-1 overflow-hidden p-2">
+              <CodeEditor
                 value={code}
-                onChange={(e) => handleCodeChange(e.target.value)}
-                className="h-full w-full resize-none font-mono text-sm"
-                placeholder="Write your solution here..."
+                onChange={handleCodeChange}
+                language={language}
                 disabled={isSubmitting || isPolling}
+                placeholder="Write your solution here..."
               />
             </div>
           )}

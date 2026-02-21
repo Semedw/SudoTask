@@ -2,8 +2,8 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
-import { Terminal, Eye, EyeOff } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Terminal, Eye, EyeOff, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { useAuthStore } from "@/lib/auth/authStore"
+import { useAuth } from "@/lib/auth/useAuth"
 import { toast } from "sonner"
 import { UserRole } from "@/lib/types"
 
@@ -19,6 +20,36 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const register = useAuthStore((state) => state.register)
+  const { user, isInitialized } = useAuth()
+
+  // Auto-redirect if already logged in
+  useEffect(() => {
+    if (isInitialized && user) {
+      if (user.role === "TEACHER") {
+        router.replace("/teacher")
+      } else if (user.role === "STUDENT") {
+        router.replace("/student")
+      }
+    }
+  }, [user, isInitialized, router])
+
+  // Show loading while checking auth
+  if (!isInitialized) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  // Don't render register form if already authenticated
+  if (user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>, role: UserRole) => {
     e.preventDefault()

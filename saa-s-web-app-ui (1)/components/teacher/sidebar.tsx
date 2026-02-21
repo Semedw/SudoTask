@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import {
   LayoutDashboard,
   GraduationCap,
@@ -10,7 +10,6 @@ import {
   BarChart3,
   Settings,
   Terminal,
-  LogOut,
 } from "lucide-react"
 import {
   Sidebar,
@@ -25,11 +24,7 @@ import {
   SidebarMenuItem,
   SidebarSeparator,
 } from "@/components/ui/sidebar"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
-import { useAuth } from "@/lib/auth/useAuth"
-import { useAuthStore } from "@/lib/auth/authStore"
-import { toast } from "sonner"
+import { AccountSwitcher } from "@/components/account-switcher"
 
 const navItems = [
   { title: "Dashboard", href: "/teacher", icon: LayoutDashboard },
@@ -42,18 +37,6 @@ const navItems = [
 
 export function TeacherSidebar() {
   const pathname = usePathname()
-  const router = useRouter()
-  const { user } = useAuth()
-  const logout = useAuthStore((state) => state.logout)
-
-  const handleLogout = () => {
-    logout()
-    toast.success("Logged out successfully")
-    router.push("/login")
-  }
-
-  const initials = user ? `${user.first_name[0]}${user.last_name[0]}`.toUpperCase() : "T"
-  const fullName = user ? `${user.first_name} ${user.last_name}` : "Teacher"
 
   return (
     <Sidebar>
@@ -98,25 +81,7 @@ export function TeacherSidebar() {
 
       <SidebarFooter className="p-4">
         <SidebarSeparator className="mx-0 mb-3" />
-        <div className="flex items-center gap-3">
-          <Avatar className="h-8 w-8">
-            <AvatarFallback className="bg-sidebar-accent text-xs text-sidebar-accent-foreground">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 truncate">
-            <p className="truncate text-sm font-medium text-sidebar-foreground">{fullName}</p>
-            <p className="truncate text-xs text-sidebar-foreground/60">{user?.email}</p>
-          </div>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-8 w-8 text-sidebar-foreground/60 hover:text-sidebar-foreground"
-            onClick={handleLogout}
-          >
-            <LogOut className="h-4 w-4" />
-          </Button>
-        </div>
+        <AccountSwitcher variant="full" />
       </SidebarFooter>
     </Sidebar>
   )

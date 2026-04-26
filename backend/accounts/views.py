@@ -1,35 +1,141 @@
-from rest_framework import status, generics, permissions
+from django.conf import settings
+from django.contrib.auth import authenticate, get_user_model
+from django.views.decorators.csrf import ensure_csrf_cookie
+from rest_framework import generics, permissions, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework_simplejwt.views import TokenObtainPairView
-from rest_framework_simplejwt.tokens import RefreshToken
-from django.contrib.auth import get_user_model
+from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from .serializers import RegisterSerializer, UserSerializer, UserProfileSerializer
 
 User = get_user_model()
 
 
+def _cookie_options() -> dict:
+    return {
+        'httponly': True,
+        'secure': settings.AUTH_COOKIE_SECURE,
+        'samesite': settings.AUTH_COOKIE_SAMESITE,
+        'domain': settings.AUTH_COOKIE_DOMAIN,
+        'path': '/',
+    }
+
+
+def _set_auth_cookies(response: Response, refresh: RefreshToken):
+    access = refresh.access_token
+    response.set_cookie(
+        settings.AUTH_ACCESS_COOKIE_NAME,
+        str(access),
+        max_age=int(settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'].total_seconds()),
+        **_cookie_options(),
+    )
+    response.set_cookie(
+        settings.AUTH_REFRESH_COOKIE_NAME,
+        str(refresh),
+        max_age=int(settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'].total_seconds()),
+        **_cookie_options(),
+    )
+
+
+def _clear_auth_cookies(response: Response):
+    response.delete_cookie(
+        settings.AUTH_ACCESS_COOKIE_NAME,
+        domain=settings.AUTH_COOKIE_DOMAIN,
+        path='/',
+        samesite=settings.AUTH_COOKIE_SAMESITE,
+    )
+    response.delete_cookie(
+        settings.AUTH_REFRESH_COOKIE_NAME,
+        domain=settings.AUTH_COOKIE_DOMAIN,
+        path='/',
+        samesite=settings.AUTH_COOKIE_SAMESITE,
+    )
+
+
 class RegisterView(generics.CreateAPIView):
     """User registration endpoint."""
+
     queryset = User.objects.all()
     permission_classes = [permissions.AllowAny]
     serializer_class = RegisterSerializer
-    
+
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        
-        # Generate JWT tokens
         refresh = RefreshToken.for_user(user)
-        
-        return Response({
-            'user': UserSerializer(user).data,
-            'tokens': {
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
-            }
-        }, status=status.HTTP_201_CREATED)
+
+        response = Response(
+            {'user': UserSerializer(user).data},
+            status=status.HTTP_201_CREATED,
+        )
+        _set_auth_cookies(response, refresh)
+        return response
+
+
+class LoginView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        email = request.data.get('email')
+        password = request.data.get('password')
+        if not email or not password:
+            return Response(
+                {'detail': 'Email and password are required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user = authenticate(request, email=email, password=password)
+        if user is None:
+            user = authenticate(request, username=email, password=password)
+
+        if user is None:
+            return Response({'detail': 'Invalid credentials.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        refresh = RefreshToken.for_user(user)
+        response = Response({'user': UserSerializer(user).data}, status=status.HTTP_200_OK)
+        _set_auth_cookies(response, refresh)
+        return response
+
+
+class RefreshView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        refresh_token = request.COOKIES.get(settings.AUTH_REFRESH_COOKIE_NAME)
+        if not refresh_token:
+            return Response({'detail': 'No refresh token cookie found.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        try:
+            refresh = RefreshToken(refresh_token)
+            access = refresh.access_token
+        except TokenError:
+            return Response({'detail': 'Invalid refresh token.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        response = Response({'detail': 'Token refreshed.'}, status=status.HTTP_200_OK)
+        response.set_cookie(
+            settings.AUTH_ACCESS_COOKIE_NAME,
+            str(access),
+            max_age=int(settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'].total_seconds()),
+            **_cookie_options(),
+        )
+        return response
+
+
+class LogoutView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        response = Response({'detail': 'Logged out.'}, status=status.HTTP_200_OK)
+        _clear_auth_cookies(response)
+        return response
+
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+@ensure_csrf_cookie
+def csrf_view(request):
+    return Response({'detail': 'CSRF cookie set.'}, status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])

@@ -2,7 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.db.models import Count, Sum, Q
+from django.db.models import Count, Sum, Q, Avg
 from accounts.permissions import IsTeacher
 from .models import ClassRoom, ClassMembership
 from .serializers import ClassRoomSerializer, ClassMembershipSerializer, JoinClassSerializer
@@ -95,7 +95,7 @@ class ClassRoomViewSet(viewsets.ModelViewSet):
             'total_students': classroom.memberships.count(),
             'total_tasks': tasks.count(),
             'total_submissions': submissions.count(),
-            'average_score': submissions.aggregate(avg=Sum('score'))['avg'] or 0,
+            'average_score': submissions.aggregate(avg=Avg('score'))['avg'] or 0,
             'submission_status_breakdown': {
                 'pending': submissions.filter(status='pending').count(),
                 'running': submissions.filter(status='running').count(),
@@ -112,7 +112,7 @@ class ClassRoomViewSet(viewsets.ModelViewSet):
                 'id': task.id,
                 'title': task.title,
                 'submission_count': task_submissions.count(),
-                'average_score': task_submissions.aggregate(avg=Sum('score'))['avg'] or 0,
+                'average_score': task_submissions.aggregate(avg=Avg('score'))['avg'] or 0,
                 'pass_rate': (task_submissions.filter(status='passed').count() / 
                             max(task_submissions.count(), 1)) * 100
             })

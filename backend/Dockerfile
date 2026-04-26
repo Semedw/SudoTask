@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
@@ -35,4 +35,4 @@ COPY . .
 EXPOSE 8000
 
 # Default command
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+CMD ["gunicorn", "sudotask.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "60"]

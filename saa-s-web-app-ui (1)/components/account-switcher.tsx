@@ -30,7 +30,6 @@ interface AccountSwitcherProps {
 
 export function AccountSwitcher({ variant = "full" }: AccountSwitcherProps) {
   const { user } = useAuth()
-  const switchAccount = useAuthStore((state) => state.switchAccount)
   const logout = useAuthStore((state) => state.logout)
   const router = useRouter()
   const [savedAccounts, setSavedAccounts] = useState<SavedAccountInfo[]>([])
@@ -50,20 +49,11 @@ export function AccountSwitcher({ variant = "full" }: AccountSwitcherProps) {
   const handleSwitch = async (email: string) => {
     setSwitching(true)
     try {
-      await switchAccount(email)
-      const updated = useAuthStore.getState().user
-      toast.success(`Switched to ${updated?.first_name} ${updated?.last_name}`)
-      // Redirect to the correct dashboard
-      if (updated?.role === "TEACHER") {
-        router.push("/teacher")
-      } else {
-        router.push("/student")
-      }
+      logout()
+      toast.info("Select the account on login and enter your password.")
+      router.push(`/login?email=${encodeURIComponent(email)}`)
     } catch (err: any) {
       toast.error(err?.message || "Failed to switch account")
-      // If session expired, remove the account and redirect to login
-      removeSavedAccount(email)
-      setSavedAccounts(getSavedAccounts())
     } finally {
       setSwitching(false)
       setOpen(false)

@@ -13,16 +13,12 @@ testcase_router.register(r'testcases', TestCaseViewSet, basename='testcase')
 task_router = SimpleRouter()
 task_router.register(r'', TaskViewSet, basename='task')
 
-from django.views.decorators.csrf import csrf_exempt
-
 # Define a wrapper to load the submission view ONLY when needed
-@csrf_exempt
 def get_submission_view(request, *args, **kwargs):
     from submissions.views import SubmissionViewSet
     view = SubmissionViewSet.as_view({'post': 'submit'})
     return view(request, *args, **kwargs)
 
-@csrf_exempt
 def get_test_view(request, *args, **kwargs):
     from submissions.views import SubmissionViewSet
     view = SubmissionViewSet.as_view({'post': 'test'})

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft, CheckCircle2, XCircle, Clock, Terminal, Loader2 } from "lucide-react"
 import Link from "next/link"
@@ -13,7 +13,7 @@ import { pollSubmission } from "@/lib/api/submissions"
 import { Submission } from "@/lib/types"
 import { toast } from "sonner"
 
-export default function SubmissionResultPage() {
+function SubmissionResultPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const submissionId = searchParams.get("id")
@@ -258,5 +258,22 @@ export default function SubmissionResultPage() {
         </div>
       </main>
     </div>
+  )
+}
+
+export default function SubmissionResultPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
+            <p className="mt-4 text-sm text-muted-foreground">Loading submission...</p>
+          </div>
+        </div>
+      }
+    >
+      <SubmissionResultPageContent />
+    </Suspense>
   )
 }

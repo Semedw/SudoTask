@@ -25,10 +25,10 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const login = useAuthStore((state) => state.login)
-  const switchAccount = useAuthStore((state) => state.switchAccount)
   const { user, isInitialized } = useAuth()
   const [savedAccounts, setSavedAccounts] = useState<SavedAccountInfo[]>([])
   const [showManualLogin, setShowManualLogin] = useState(false)
+  const [prefilledEmail, setPrefilledEmail] = useState("")
 
   // Load saved accounts on mount
   useEffect(() => {
@@ -66,24 +66,9 @@ export default function LoginPage() {
   }
 
   const handleInstantSwitch = async (account: SavedAccountInfo) => {
-    setIsLoading(true)
-    try {
-      await switchAccount(account.email)
-      const u = useAuthStore.getState().user
-      toast.success(`Welcome back, ${u?.first_name}!`)
-      if (u?.role === "TEACHER") {
-        router.push("/teacher")
-      } else {
-        router.push("/student")
-      }
-    } catch {
-      // Tokens expired — remove and let them log in manually
-      toast.error("Session expired. Please sign in again.")
-      const updated = removeSavedAccount(account.email)
-      setSavedAccounts(updated)
-    } finally {
-      setIsLoading(false)
-    }
+    setPrefilledEmail(account.email)
+    setShowManualLogin(true)
+    toast.info("Enter your password to continue.")
   }
 
   const handleRemoveAccount = (e: React.MouseEvent, email: string) => {
@@ -263,6 +248,7 @@ export default function LoginPage() {
                       name="email"
                       type="email"
                       placeholder="you@university.edu"
+                      defaultValue={prefilledEmail}
                       required
                       disabled={isLoading}
                     />
@@ -311,6 +297,7 @@ export default function LoginPage() {
                       name="email"
                       type="email"
                       placeholder="you@student.edu"
+                      defaultValue={prefilledEmail}
                       required
                       disabled={isLoading}
                     />

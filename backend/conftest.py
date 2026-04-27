@@ -1,4 +1,5 @@
 import pytest
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -53,14 +54,14 @@ def student2():
 @pytest.fixture
 def authenticated_client(api_client, teacher):
     token = RefreshToken.for_user(teacher)
-    api_client.credentials(HTTP_AUTHORIZATION=f'Bearer {token.access_token}')
+    api_client.cookies[settings.AUTH_ACCESS_COOKIE_NAME] = str(token.access_token)
     return api_client
 
 
 @pytest.fixture
 def student_client(api_client, student):
     token = RefreshToken.for_user(student)
-    api_client.credentials(HTTP_AUTHORIZATION=f'Bearer {token.access_token}')
+    api_client.cookies[settings.AUTH_ACCESS_COOKIE_NAME] = str(token.access_token)
     return api_client
 
 

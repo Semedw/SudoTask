@@ -128,16 +128,16 @@ class TestCaseViewSet(viewsets.ModelViewSet):
         user = self.request.user
         
         queryset = TestCase.objects.select_related('task', 'task__classroom')
-        
-        if not task_id:
-            return TestCase.objects.none()
-        
-        queryset = queryset.filter(task_id=task_id)
-        
+
         if user.is_teacher:
-            return queryset.filter(task__classroom__teacher=user)
-        
-        return queryset.filter(task__classroom__memberships__student=user)
+            queryset = queryset.filter(task__classroom__teacher=user)
+        else:
+            queryset = queryset.filter(task__classroom__memberships__student=user)
+
+        if task_id:
+            queryset = queryset.filter(task_id=task_id)
+
+        return queryset
     
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:

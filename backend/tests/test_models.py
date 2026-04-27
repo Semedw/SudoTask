@@ -2,8 +2,10 @@ import pytest
 from django.core.exceptions import ValidationError
 from accounts.models import User
 from classroom.models import ClassRoom, ClassMembership
-from tasks.models import Task, Criteria, TestCase
+from tasks.models import Task, Criteria, TestCase as TaskTestCase
 from submissions.models import Submission, SubmissionTestResult
+
+pytestmark = pytest.mark.django_db
 
 
 class TestUserModel:
@@ -59,7 +61,7 @@ class TestClassMembershipModel:
         assert membership.student == student
 
     def test_membership_str(self, membership):
-        assert 'test@test.com' in str(membership)
+        assert 'student@test.com' in str(membership)
         assert 'Test Classroom' in str(membership)
 
     def test_teacher_cannot_join_own_class(self, classroom, teacher):
@@ -125,9 +127,9 @@ class TestTestCaseModel:
         assert 'Hidden' in str(testcase2)
 
     def test_testcase_ordering(self, task):
-        tc1 = TestCase.objects.create(task=task, input_data='1', expected_output='1', order=2)
-        tc2 = TestCase.objects.create(task=task, input_data='2', expected_output='2', order=1)
-        ordered = list(TestCase.objects.filter(task=task))
+        tc1 = TaskTestCase.objects.create(task=task, input_data='1', expected_output='1', order=2)
+        tc2 = TaskTestCase.objects.create(task=task, input_data='2', expected_output='2', order=1)
+        ordered = list(TaskTestCase.objects.filter(task=task))
         assert ordered[0].order == 1
         assert ordered[1].order == 2
 
@@ -140,7 +142,7 @@ class TestSubmissionModel:
         assert submission.score == 100
 
     def test_submission_str(self, submission):
-        assert 'test@test.com' in str(submission)
+        assert 'student@test.com' in str(submission)
         assert 'Test Task' in str(submission)
         assert 'passed' in str(submission)
 

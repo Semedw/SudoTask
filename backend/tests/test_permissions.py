@@ -4,6 +4,8 @@ from tasks.permissions import IsTaskOwner, IsTaskClassMember
 from classroom.permissions import IsClassOwner, IsClassMember
 from submissions.permissions import IsSubmissionOwner, CanSubmitCode
 
+pytestmark = pytest.mark.django_db
+
 
 class TestAccountPermissions:
     def test_is_teacher_permission_teacher(self, teacher, api_client):

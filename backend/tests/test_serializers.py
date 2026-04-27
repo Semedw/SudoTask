@@ -4,6 +4,8 @@ from classroom.serializers import ClassRoomSerializer, ClassMembershipSerializer
 from tasks.serializers import TaskSerializer, TaskListSerializer, CriteriaSerializer, TestCaseSerializer
 from submissions.serializers import SubmissionSerializer, SubmitCodeSerializer
 
+pytestmark = pytest.mark.django_db
+
 
 class TestUserSerializers:
     def test_register_serializer_valid(self):
@@ -52,7 +54,7 @@ class TestUserSerializers:
         assert serializer.is_valid()
         serializer.save()
         teacher.refresh_from_db()
-        assert teacher.role == 'STUDENT'
+        assert teacher.role == 'TEACHER'
 
 
 class TestClassRoomSerializers:

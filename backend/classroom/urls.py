@@ -6,6 +6,6 @@ router = SimpleRouter()
 router.register(r'', ClassRoomViewSet, basename='classroom')
 
 urlpatterns = [
-    path('', include(router.urls)),
     path('join/', JoinClassViewSet.as_view({'post': 'join'}), name='join-class'),
+    path('', include(router.urls)),
 ]

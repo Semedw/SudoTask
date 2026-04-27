@@ -2,6 +2,8 @@ import pytest
 from django.urls import reverse
 from rest_framework import status
 
+pytestmark = pytest.mark.django_db
+
 
 class TestAuthEndpoints:
     def test_register(self, api_client):
@@ -66,7 +68,7 @@ class TestAuthEndpoints:
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     def test_update_profile(self, authenticated_client):
-        url = reverse('update_profile')
+        url = reverse('update-profile')
         data = {'first_name': 'Updated', 'last_name': 'Name'}
         response = authenticated_client.patch(url, data, format='json')
         assert response.status_code == status.HTTP_200_OK
@@ -88,13 +90,13 @@ class TestClassRoomEndpoints:
         url = reverse('classroom-list')
         response = authenticated_client.get(url)
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.data) >= 1
+        assert len(response.data['results']) >= 1
 
     def test_list_classrooms_student(self, student_client, membership, classroom):
         url = reverse('classroom-list')
         response = student_client.get(url)
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.data) >= 1
+        assert len(response.data['results']) >= 1
 
     def test_create_classroom(self, authenticated_client):
         url = reverse('classroom-list')
@@ -140,20 +142,20 @@ class TestClassRoomEndpoints:
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
     def test_join_class(self, student_client, classroom):
-        url = reverse('join-join')
+        url = reverse('join-class')
         data = {'class_code': classroom.class_code}
         response = student_client.post(url, data, format='json')
         assert response.status_code == status.HTTP_201_CREATED
         assert 'classroom' in response.data
 
     def test_join_class_invalid_code(self, student_client):
-        url = reverse('join-join')
+        url = reverse('join-class')
         data = {'class_code': 'INVALID'}
         response = student_client.post(url, data, format='json')
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     def test_join_class_already_member(self, student_client, membership, classroom):
-        url = reverse('join-join')
+        url = reverse('join-class')
         data = {'class_code': classroom.class_code}
         response = student_client.post(url, data, format='json')
         assert response.status_code == status.HTTP_400_BAD_REQUEST
@@ -192,7 +194,7 @@ class TestTaskEndpoints:
         url = f"{reverse('task-list')}?class_id={classroom.id}"
         response = authenticated_client.get(url)
         assert response.status_code == status.HTTP_200_OK
-        for item in response.data:
+        for item in response.data['results']:
             assert item['classroom']['id'] == classroom.id
 
     def test_create_task(self, authenticated_client, classroom):
@@ -328,14 +330,14 @@ class TestSubmissionEndpoints:
         url = reverse('submission-list')
         response = student_client.get(url)
         assert response.status_code == status.HTTP_200_OK
-        for item in response.data:
+        for item in response.data['results']:
             assert item['student']['id'] == submission.student.id
 
     def test_list_submissions_filter_by_task(self, authenticated_client, submission):
         url = f"{reverse('submission-list')}?task_id={submission.task.pk}"
         response = authenticated_client.get(url)
         assert response.status_code == status.HTTP_200_OK
-        for item in response.data:
+        for item in response.data['results']:
             assert item['task']['id'] == submission.task.id
 
     def test_retrieve_submission(self, student_client, submission):
@@ -344,7 +346,8 @@ class TestSubmissionEndpoints:
         assert response.status_code == status.HTTP_200_OK
         assert response.data['code'] == submission.code
 
-    def test_submit_code(self, student_client, task, membership):
+    def test_submit_code(self, student_client, task, membership, monkeypatch):
+        monkeypatch.setattr('submissions.views.execute_submission.delay', lambda *_args, **_kwargs: None)
         url = f"/api/submissions/tasks/{task.id}/submit/"
         data = {
             'code': 'print("Hello World")',

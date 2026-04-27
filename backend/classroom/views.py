@@ -24,13 +24,13 @@ class ClassRoomViewSet(viewsets.ModelViewSet):
             return ClassRoom.objects.filter(teacher=user).annotate(
                 student_count=Count('memberships'),
                 task_count=Count('tasks')
-            )
+            ).order_by('-id')
         else:
             # Students see classes they're members of
             return ClassRoom.objects.filter(memberships__student=user).annotate(
                 student_count=Count('memberships'),
                 task_count=Count('tasks')
-            )
+            ).order_by('-id')
     
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy', 'regenerate_code']:

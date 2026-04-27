@@ -91,6 +91,7 @@ describe('LoginPage', () => {
     vi.mocked(useAuth.useAuth).mockReturnValue({
       user: null,
       isInitialized: true,
+      isLoading: false,
     })
 
     vi.mocked(savedAccounts.getSavedAccounts).mockReturnValue([])
@@ -117,6 +118,9 @@ describe('LoginPage', () => {
     const savedAccountsList = [
       {
         email: 'teacher@test.com',
+        username: 'teacher1',
+        first_name: 'Test',
+        last_name: 'Teacher',
         firstName: 'Test',
         lastName: 'Teacher',
         role: 'TEACHER' as const,

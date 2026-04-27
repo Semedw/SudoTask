@@ -28,6 +28,17 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Debug frontend TS resolution
+        run: |
+          pwd
+          node -v
+          pnpm -v
+          pnpm exec tsc -v
+          ls -la
+          ls -la lib
+          ls -la lib/auth
+          cat tsconfig.json
+
       - name: Type/lint check
         run: pnpm lint
 

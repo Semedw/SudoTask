@@ -1,11 +1,11 @@
 # Available API Functions
 
 ## Authentication (`lib/api/auth.ts`)
-- `register(payload)` - Register a new user
-- `login(payload)` - Login user and get JWT tokens
+- `register(payload)` - Register a new user and set auth cookies
+- `login(payload)` - Login user and set auth cookies
 - `getMe()` - Get current authenticated user profile
 - `updateProfile(data)` - Update current user profile
-- `logout()` - Logout user (clear tokens)
+- `logout()` - Logout user (clear auth cookies)
 
 ## Classrooms (`lib/api/classes.ts`)
 - `getClasses()` - Get list of user's classrooms
@@ -42,9 +42,7 @@
 - `api.put(endpoint, data, options)` - Make PUT request
 - `api.patch(endpoint, data, options)` - Make PATCH request
 - `api.delete(endpoint, options)` - Make DELETE request
-- `setTokens(access, refresh)` - Set JWT tokens
-- `clearTokens()` - Clear JWT tokens
-- `initializeTokens()` - Initialize tokens from localStorage
+- `unwrapPaginated(data)` - Normalize paginated DRF responses
 
 ## Usage Example
 
@@ -66,7 +64,7 @@ const classes = await getClasses();
 
 // Test code before submitting
 const testResult = await testCode(taskId, { code, language: "python" });
-console.log(`Passed: ${testResult.passed_testcases}/${testResult.total_testcases}`);
+console.log(`Passed: ${testResult.passed_tests}/${testResult.total_tests}`);
 
 // Submit code
 const submission = await submitCode(taskId, { code, language: "python" });
@@ -85,7 +83,7 @@ const submission = await submitCode(taskId, { code, language: "python" });
 - Frontend components handle API errors gracefully with toast notifications
 - Array safety checks in dashboard to prevent `.filter is not a function` errors
 
-### Token Management
-- Automatic JWT token refresh when access token expires
-- Token persistence in localStorage
-- Automatic redirect to login on 401 (unauthorized) responses
+### Token / Session Management
+- Cookie-based auth (`credentials: include`) with httpOnly auth cookies
+- Automatic refresh call on 401 responses
+- Automatic redirect to login when refresh fails

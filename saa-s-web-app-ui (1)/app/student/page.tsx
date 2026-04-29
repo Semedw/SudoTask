@@ -17,7 +17,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { studentProfile } from "@/lib/mock-data"
 import { getTasks } from "@/lib/api/tasks"
 import { getSubmissions } from "@/lib/api/submissions"
 import { joinClass, getClasses } from "@/lib/api/classes"

@@ -17,7 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { recentSubmissions, solveTaskData } from "@/lib/mock-data"
 
 interface Submission {
-  id: string
+  id: string | number
   studentName: string
   taskName: string
   className: string

@@ -112,16 +112,23 @@ class SubmissionViewSet(viewsets.ReadOnlyModelViewSet):
         testcases = task.testcases.filter(is_hidden=False).order_by('order')
 
         runner = CodeRunner()
+        if not runner.client:
+            return Response(
+                {'detail': 'Docker executor is unavailable.'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+
         results = []
         passed_count = 0
 
         for tc in testcases:
             try:
-                if runner.client:
-                    run_result = runner.run_python(code=code, input_data=tc.input_data, timeout=10)
-                else:
-                    run_result = runner._run_local_code(code=code, language=language,
-                                                       input_data=tc.input_data, timeout=10)
+                run_result = runner.run_code(
+                    code=code,
+                    language=language,
+                    input_data=tc.input_data,
+                    timeout=10
+                )
 
                 passed = compare_outputs(run_result['stdout'], tc.expected_output)
                 if passed:

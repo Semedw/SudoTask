@@ -31,7 +31,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    command: python manage.py runserver 0.0.0.0:8000
+    command: gunicorn sudotask.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 60
     volumes:
       - ./backend:/app
       - static_volume:/app/staticfiles

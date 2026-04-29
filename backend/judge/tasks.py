@@ -3,9 +3,7 @@ Celery tasks for code execution.
 """
 import logging
 from celery import shared_task
-from django.utils import timezone
 from submissions.models import Submission, SubmissionTestResult
-from tasks.models import TestCase
 from .runner import CodeRunner, compare_outputs
 
 logger = logging.getLogger(__name__)
@@ -30,6 +28,13 @@ def execute_submission(submission_id: int):
     submission.save()
     
     runner = CodeRunner()
+    if not runner.client:
+        submission.status = Submission.Status.ERROR
+        submission.stderr = 'Docker executor is unavailable.'
+        submission.save(update_fields=['status', 'stderr'])
+        logger.error("Docker executor unavailable for submission %s", submission_id)
+        return
+
     task = submission.task
     testcases = task.testcases.all().order_by('order')
     
@@ -42,22 +47,13 @@ def execute_submission(submission_id: int):
     # Execute each testcase
     for testcase in testcases:
         try:
-            # Run code with testcase input (language-aware)
-            if runner.client:
-                # Docker path (currently only python)
-                result = runner.run_python(
-                    code=submission.code,
-                    input_data=testcase.input_data,
-                    timeout=getattr(submission, 'timeout', 10)
-                )
-            else:
-                # Local fallback – supports multiple languages
-                result = runner._run_local_code(
-                    code=submission.code,
-                    language=submission.language,
-                    input_data=testcase.input_data,
-                    timeout=10
-                )
+            # Run code with testcase input in Docker only.
+            result = runner.run_code(
+                code=submission.code,
+                language=submission.language,
+                input_data=testcase.input_data,
+                timeout=getattr(submission, 'timeout', 10)
+            )
             
             # Compare outputs
             passed = compare_outputs(result['stdout'], testcase.expected_output)

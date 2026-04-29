@@ -2,12 +2,12 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.db.models import Count, Sum, Q
+from rest_framework.exceptions import PermissionDenied
+from django.db.models import Avg
 from accounts.permissions import IsTeacher
 from .models import Task, Criteria, TestCase
 from .serializers import TaskSerializer, TaskListSerializer, CriteriaSerializer, TestCaseSerializer
 from .permissions import IsTaskOwner, IsTaskClassMember
-from classroom.permissions import IsClassOwner
 from submissions.models import Submission
 
 
@@ -47,7 +47,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         classroom = serializer.validated_data['classroom']
         if classroom.teacher != self.request.user:
-            raise PermissionError("You can only create tasks in your own classes.")
+            raise PermissionDenied("You can only create tasks in your own classes.")
         serializer.save()
     
     @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated, IsTaskClassMember])
@@ -65,7 +65,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             'task': TaskSerializer(task).data,
             'total_submissions': submissions.count(),
             'unique_students': submissions.values('student').distinct().count(),
-            'average_score': submissions.aggregate(avg=Sum('score'))['avg'] or 0,
+            'average_score': submissions.aggregate(avg=Avg('score'))['avg'] or 0,
             'submission_status_breakdown': {
                 'pending': submissions.filter(status='pending').count(),
                 'running': submissions.filter(status='running').count(),
@@ -105,14 +105,15 @@ class CriteriaViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         task_id = self.request.query_params.get('task_id', None)
+        queryset = Criteria.objects.filter(task__classroom__teacher=self.request.user)
         if task_id:
-            return Criteria.objects.filter(task_id=task_id)
-        return Criteria.objects.none()
+            queryset = queryset.filter(task_id=task_id)
+        return queryset
     
     def perform_create(self, serializer):
         task = serializer.validated_data['task']
         if task.classroom.teacher != self.request.user:
-            raise PermissionError("You can only add criteria to tasks in your own classes.")
+            raise PermissionDenied("You can only add criteria to tasks in your own classes.")
         serializer.save()
 
 
@@ -126,13 +127,17 @@ class TestCaseViewSet(viewsets.ModelViewSet):
         task_id = self.request.query_params.get('task_id', None)
         user = self.request.user
         
-        queryset = TestCase.objects.all()
-        
+        queryset = TestCase.objects.select_related('task', 'task__classroom')
+
+        if user.is_teacher:
+            queryset = queryset.filter(task__classroom__teacher=user)
+        else:
+            queryset = queryset.filter(task__classroom__memberships__student=user)
+
         if task_id:
             queryset = queryset.filter(task_id=task_id)
-        
-        # Teachers see all, students see all but with hidden expected_output filtered
-        return queryset.select_related('task')
+
+        return queryset
     
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
@@ -142,16 +147,16 @@ class TestCaseViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         task = serializer.validated_data['task']
         if task.classroom.teacher != self.request.user:
-            raise PermissionError("You can only add testcases to tasks in your own classes.")
+            raise PermissionDenied("You can only add testcases to tasks in your own classes.")
         serializer.save()
     
     def perform_update(self, serializer):
         task = serializer.instance.task
         if task.classroom.teacher != self.request.user:
-            raise PermissionError("You can only update testcases in your own classes.")
+            raise PermissionDenied("You can only update testcases in your own classes.")
         serializer.save()
     
     def perform_destroy(self, instance):
         if instance.task.classroom.teacher != self.request.user:
-            raise PermissionError("You can only delete testcases in your own classes.")
+            raise PermissionDenied("You can only delete testcases in your own classes.")
         instance.delete()

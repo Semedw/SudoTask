@@ -104,7 +104,7 @@ export default function TaskDetailPage() {
         const [taskData, testCasesData, submissionsData] = await Promise.all([
           getTask(taskId),
           getTestCases(taskId),
-          getSubmissions({ task_id: taskId }),
+          getSubmissions(taskId),
         ])
         setTask(taskData)
         setTestCases(testCasesData)
@@ -142,7 +142,6 @@ export default function TaskDetailPage() {
     try {
       setIsAddingTestCase(true)
       const created = await addTestCase(taskId, {
-        task: taskId,
         input_data: newTestCase.input_data,
         expected_output: newTestCase.expected_output,
         is_hidden: newTestCase.is_hidden,

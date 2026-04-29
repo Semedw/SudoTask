@@ -14,6 +14,7 @@ class CriteriaSerializer(serializers.ModelSerializer):
 
 class TestCaseSerializer(serializers.ModelSerializer):
     """Serializer for TestCase model."""
+    __test__ = False
     
     class Meta:
         model = TestCase

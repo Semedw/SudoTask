@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, Play, Send, Clock, Terminal, Loader2, CheckCircle2, XCircle, AlertCircle, FlaskConical } from "lucide-react"
@@ -24,7 +24,7 @@ const STARTER_CODE: Record<string, string> = {
   java: `import java.util.Scanner;\n\npublic class Solution {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        // Read input and write your solution here\n    }\n}`,
 }
 
-export default function SolveTaskPage() {
+function SolveTaskPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const taskId = searchParams.get("taskId")
@@ -666,5 +666,22 @@ export default function SolveTaskPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function SolveTaskPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-screen items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
+            <p className="mt-4 text-sm text-muted-foreground">Loading task...</p>
+          </div>
+        </div>
+      }
+    >
+      <SolveTaskPageContent />
+    </Suspense>
   )
 }

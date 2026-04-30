@@ -53,6 +53,15 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
       SECRET_KEY: ci-secret-key
       DEBUG: "False"
@@ -60,8 +69,10 @@ jobs:
       DB_NAME: sudotask
       DB_USER: postgres
       DB_PASSWORD: postgres
-      DB_HOST: 127.0.0.1
+      DB_HOST: localhost
       DB_PORT: 5432
+      TEST_DB_HOST: localhost
+      TEST_DB_PORT: 5432
       CELERY_BROKER_URL: redis://localhost:6379/0
       CELERY_RESULT_BACKEND: redis://localhost:6379/0
       AUTH_COOKIE_SECURE: "False"
@@ -78,6 +89,7 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+          cache: 'pip'
 
       - name: Install dependencies
         run: pip install -r requirements.txt
@@ -85,5 +97,21 @@ jobs:
       - name: Django checks
         run: python manage.py check
 
+      - name: Django deployment check
+        run: python manage.py check --deploy
+
       - name: Migration sanity
         run: python manage.py makemigrations --check --dry-run
+
+      - name: Run migrations
+        run: python manage.py migrate
+
+      - name: Run tests
+        run: pytest -n auto --cov=. --cov-report=xml --cov-fail-under=80
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: coverage
+          path: coverage.xml

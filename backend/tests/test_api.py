@@ -1,5 +1,6 @@
 import pytest
 from django.urls import reverse
+from django.test import override_settings
 from rest_framework import status
 
 pytestmark = pytest.mark.django_db
@@ -56,6 +57,37 @@ class TestAuthEndpoints:
         response = api_client.post(url, data, format='json')
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
+    def test_login_without_trailing_slash(self, api_client, student):
+        data = {
+            'email': 'student@test.com',
+            'password': 'testpass123'
+        }
+        response = api_client.post('/api/auth/login', data, format='json')
+        assert response.status_code == status.HTTP_200_OK
+        assert 'user' in response.data
+
+    @override_settings(AUTH_COOKIE_SAMESITE='invalid')
+    def test_login_invalid_cookie_samesite_returns_503(self, api_client, student):
+        url = reverse('login')
+        data = {
+            'email': 'student@test.com',
+            'password': 'testpass123'
+        }
+        response = api_client.post(url, data, format='json')
+        assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        assert 'temporarily unavailable' in response.data['detail'].lower()
+
+    @override_settings(AUTH_COOKIE_SAMESITE='None', AUTH_COOKIE_SECURE=False)
+    def test_login_insecure_none_samesite_returns_503(self, api_client, student):
+        url = reverse('login')
+        data = {
+            'email': 'student@test.com',
+            'password': 'testpass123'
+        }
+        response = api_client.post(url, data, format='json')
+        assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        assert 'temporarily unavailable' in response.data['detail'].lower()
+
     def test_me_authenticated(self, authenticated_client, teacher):
         url = reverse('me')
         response = authenticated_client.get(url)
@@ -66,6 +98,16 @@ class TestAuthEndpoints:
         url = reverse('me')
         response = api_client.get(url)
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    @override_settings(SECURE_SSL_REDIRECT=False)
+    def test_me_not_redirected_when_ssl_redirect_disabled(self, api_client):
+        response = api_client.get('/api/auth/me/')
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    @override_settings(SECURE_SSL_REDIRECT=True)
+    def test_me_redirects_when_ssl_redirect_enabled(self, api_client):
+        response = api_client.get('/api/auth/me/')
+        assert response.status_code == status.HTTP_301_MOVED_PERMANENTLY
 
     def test_update_profile(self, authenticated_client):
         url = reverse('update-profile')
@@ -78,6 +120,18 @@ class TestAuthEndpoints:
         url = reverse('csrf')
         response = api_client.get(url)
         assert response.status_code == status.HTTP_200_OK
+
+    def test_base_collection_endpoints_accept_slash_and_no_slash(self, api_client):
+        for endpoint in (
+            '/api/classes',
+            '/api/classes/',
+            '/api/tasks',
+            '/api/tasks/',
+            '/api/submissions',
+            '/api/submissions/',
+        ):
+            response = api_client.get(endpoint)
+            assert response.status_code != status.HTTP_404_NOT_FOUND
 
     def test_logout(self, authenticated_client):
         url = reverse('logout')

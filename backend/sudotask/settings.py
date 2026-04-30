@@ -26,6 +26,31 @@ def env_list(name: str, default: str = '') -> list[str]:
     return [item.strip() for item in raw.split(',') if item.strip()]
 
 
+def normalize_auth_cookie_samesite(value: str) -> str:
+    raw = (value or '').strip().lower()
+    mapping = {
+        'lax': 'Lax',
+        'strict': 'Strict',
+        'none': 'None',
+    }
+    if raw not in mapping:
+        raise RuntimeError('AUTH_COOKIE_SAMESITE must be one of: Lax, Strict, None.')
+    return mapping[raw]
+
+
+def validate_auth_cookie_domain(value: str | None) -> str | None:
+    if value is None:
+        return None
+    domain = value.strip()
+    if not domain:
+        return None
+    if '://' in domain or '/' in domain or ':' in domain or any(ch.isspace() for ch in domain):
+        raise RuntimeError(
+            'AUTH_COOKIE_DOMAIN must be a plain host/domain without scheme, path, port, or spaces.'
+        )
+    return domain
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
@@ -34,6 +59,7 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-change-this-in-production'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env_bool('DEBUG', False)
+LOCAL_DEV_MODE = env_bool('LOCAL_DEV_MODE', DEBUG)
 
 ALLOWED_HOSTS = env_list(
     'ALLOWED_HOSTS',
@@ -81,6 +107,12 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'sudotask.urls'
+
+# Enable automatic slash appending for API routes
+APPEND_SLASH = True
+
+# Disable automatic slash appending to prevent POST redirect issues
+APPEND_SLASH = False
 
 TEMPLATES = [
     {
@@ -197,9 +229,12 @@ SIMPLE_JWT = {
 # Auth cookie settings
 AUTH_ACCESS_COOKIE_NAME = os.getenv('AUTH_ACCESS_COOKIE_NAME', 'access_token')
 AUTH_REFRESH_COOKIE_NAME = os.getenv('AUTH_REFRESH_COOKIE_NAME', 'refresh_token')
-AUTH_COOKIE_DOMAIN = os.getenv('AUTH_COOKIE_DOMAIN') or None
 AUTH_COOKIE_SECURE = env_bool('AUTH_COOKIE_SECURE', not DEBUG)
-AUTH_COOKIE_SAMESITE = os.getenv('AUTH_COOKIE_SAMESITE', 'Lax')
+AUTH_COOKIE_SAMESITE = normalize_auth_cookie_samesite(os.getenv('AUTH_COOKIE_SAMESITE', 'Lax'))
+AUTH_COOKIE_DOMAIN = validate_auth_cookie_domain(os.getenv('AUTH_COOKIE_DOMAIN') or None)
+
+if AUTH_COOKIE_SAMESITE == 'None' and not AUTH_COOKIE_SECURE:
+    raise RuntimeError('AUTH_COOKIE_SECURE must be True when AUTH_COOKIE_SAMESITE is None.')
 
 # CORS Settings
 CORS_ALLOWED_ORIGINS = env_list(
@@ -215,15 +250,15 @@ CSRF_TRUSTED_ORIGINS = env_list(
 
 # Security settings
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-USE_X_FORWARDED_HOST = env_bool('USE_X_FORWARDED_HOST', not DEBUG)
-SECURE_SSL_REDIRECT = env_bool('SECURE_SSL_REDIRECT', not DEBUG)
-SESSION_COOKIE_SECURE = env_bool('SESSION_COOKIE_SECURE', not DEBUG)
-CSRF_COOKIE_SECURE = env_bool('CSRF_COOKIE_SECURE', not DEBUG)
+USE_X_FORWARDED_HOST = env_bool('USE_X_FORWARDED_HOST', not LOCAL_DEV_MODE)
+SECURE_SSL_REDIRECT = env_bool('SECURE_SSL_REDIRECT', not LOCAL_DEV_MODE)
+SESSION_COOKIE_SECURE = env_bool('SESSION_COOKIE_SECURE', not LOCAL_DEV_MODE)
+CSRF_COOKIE_SECURE = env_bool('CSRF_COOKIE_SECURE', not LOCAL_DEV_MODE)
 SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = False
 X_FRAME_OPTIONS = os.getenv('X_FRAME_OPTIONS', 'DENY')
-SECURE_HSTS_SECONDS = int(os.getenv('SECURE_HSTS_SECONDS', '0' if DEBUG else '3600'))
-SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool('SECURE_HSTS_INCLUDE_SUBDOMAINS', not DEBUG)
+SECURE_HSTS_SECONDS = int(os.getenv('SECURE_HSTS_SECONDS', '0' if LOCAL_DEV_MODE else '3600'))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool('SECURE_HSTS_INCLUDE_SUBDOMAINS', not LOCAL_DEV_MODE)
 SECURE_HSTS_PRELOAD = env_bool('SECURE_HSTS_PRELOAD', False)
 SECURE_CONTENT_TYPE_NOSNIFF = env_bool('SECURE_CONTENT_TYPE_NOSNIFF', True)
 

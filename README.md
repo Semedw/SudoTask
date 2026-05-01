@@ -66,6 +66,10 @@ docker compose -f docker-compose.prod.yml up --build -d
 docker compose -f docker-compose.prod.yml exec web python manage.py migrate
 ```
 
+This profile starts the frontend service with `next build` + `next start` and publishes:
+- Frontend: `http://localhost:3000`
+- Backend API: `http://localhost:8001/api`
+
 ## Local development (without backend Docker container)
 
 You can run backend locally while keeping DB/Redis in Docker.

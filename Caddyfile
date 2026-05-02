@@ -1,0 +1,23 @@
+{$DOMAIN_NAME} {
+    # Proxy API and Admin routes to backend Django app
+    handle_path /api/* {
+        reverse_proxy web:8000
+    }
+    handle_path /admin/* {
+        reverse_proxy web:8000
+    }
+    
+    # Proxy Django static and media files if needed
+    # (Assuming standard Django paths, can be adjusted)
+    handle_path /static/* {
+        reverse_proxy web:8000
+    }
+    handle_path /media/* {
+        reverse_proxy web:8000
+    }
+
+    # Proxy everything else to Next.js frontend
+    handle {
+        reverse_proxy frontend:3000
+    }
+}

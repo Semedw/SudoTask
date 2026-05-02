@@ -96,12 +96,12 @@ export default function RegisterPage() {
         router.push("/student")
       }
     } catch (error: any) {
-      const message = error.fieldErrors 
-        ? Object.entries(error.fieldErrors).map(([field, errors]: [string, any]) => 
-            `${field}: ${Array.isArray(errors) ? errors.join(", ") : errors}`
-          ).join("\n")
+      const message = error.fieldErrors
+        ? Object.entries(error.fieldErrors).map(([field, errors]: [string, any]) =>
+          `${field}: ${Array.isArray(errors) ? errors.join(", ") : errors}`
+        ).join("\n")
         : error?.message || (typeof error === "string" ? error : "Registration failed. Please try again.")
-      
+
       toast.error(message)
     } finally {
       setIsLoading(false)
@@ -140,21 +140,21 @@ export default function RegisterPage() {
                 >
                   <div className="flex flex-col gap-2">
                     <Label htmlFor="teacher-name">Full Name</Label>
-                    <Input 
-                      id="teacher-name" 
+                    <Input
+                      id="teacher-name"
                       name="fullName"
-                      placeholder="Dr. Sarah Chen" 
+                      placeholder="Dr. Sarah Chen"
                       required
                       disabled={isLoading}
                     />
                   </div>
                   <div className="flex flex-col gap-2">
                     <Label htmlFor="teacher-reg-email">Email</Label>
-                    <Input 
-                      id="teacher-reg-email" 
+                    <Input
+                      id="teacher-reg-email"
                       name="email"
-                      type="email" 
-                      placeholder="you@university.edu" 
+                      type="email"
+                      placeholder="you@university.edu"
                       required
                       disabled={isLoading}
                     />
@@ -208,21 +208,21 @@ export default function RegisterPage() {
                 >
                   <div className="flex flex-col gap-2">
                     <Label htmlFor="student-name">Full Name</Label>
-                    <Input 
-                      id="student-name" 
+                    <Input
+                      id="student-name"
                       name="fullName"
-                      placeholder="Alex Johnson" 
+                      placeholder="Alex Johnson"
                       required
                       disabled={isLoading}
                     />
                   </div>
                   <div className="flex flex-col gap-2">
                     <Label htmlFor="student-reg-email">Email</Label>
-                    <Input 
-                      id="student-reg-email" 
+                    <Input
+                      id="student-reg-email"
                       name="email"
-                      type="email" 
-                      placeholder="you@student.edu" 
+                      type="email"
+                      placeholder="you@student.edu"
                       required
                       disabled={isLoading}
                     />

@@ -41,8 +41,6 @@ services:
       DB_PORT: 5432
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
-    ports:
-      - "8001:8000"
 
   celery:
     build:
@@ -71,8 +69,22 @@ services:
     depends_on:
       web:
         condition: service_started
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+      - frontend
 
 volumes:
   postgres_data:
+  caddy_data:
+  caddy_config:

@@ -60,6 +60,10 @@ services:
       DB_PORT: 5432
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
+      JUDGE_WORKSPACE_DIR: /tmp/judge_workspace
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /tmp/judge_workspace:/tmp/judge_workspace
 
   frontend:
     build:

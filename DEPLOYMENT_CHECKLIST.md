@@ -10,7 +10,7 @@ Use this as a **hard gate** before deploying to production (single VPS + Docker 
 | 2 | No reverse proxy/TLS layer | No Nginx/Caddy/Traefik config for 80/443, TLS termination, or safe routing | Add reverse proxy service and TLS cert flow; expose only 80/443 publicly | done
 | 3 | Frontend API rewrite is hard-coded to localhost | `next.config.mjs` rewrites to `http://127.0.0.1:8000/api/:path*`, which breaks non-local deployments | Replace rewrite with env-driven destination and production-safe defaults | done
 | 4 | Backend port mapping is inconsistent with frontend assumptions | Prod compose maps backend `8001:8000` while frontend default rewrite points to 8000 | Unify API routing strategy (domain/proxy/internal service name) and remove port ambiguity |
-| 5 | Judge runtime not wired to Docker daemon | Runner uses `docker.from_env()` but compose does not provide `/var/run/docker.sock` or `DOCKER_HOST` | Add secure Docker daemon access for judge worker and document hardening constraints |
+| 5 | Judge runtime not wired to Docker daemon | Runner uses `docker.from_env()` but compose does not provide `/var/run/docker.sock` or `DOCKER_HOST` | Add secure Docker daemon access for judge worker and document hardening constraints | done
 | 6 | Startup flow is manual | Migrations are manual post-start commands; easy to miss during rollout | Add deterministic startup/entrypoint flow for migrate + app start |
 | 7 | Static files pipeline is incomplete | `STATIC_ROOT` exists, but no explicit production `collectstatic` + serving path is wired | Add `collectstatic` step and static file serving via proxy (or Whitenoise strategy) |
 | 8 | No app-level health endpoint | Container health checks exist for db/redis only; API/service health is not exposed for orchestration | Add `/health` endpoint and health checks for web/celery processes |
@@ -24,7 +24,7 @@ Use this as a **hard gate** before deploying to production (single VPS + Docker 
 - [ ] Add frontend production runtime (`predeploy-frontend-runtime`)
 - [ ] Add ingress + TLS (`predeploy-ingress-tls`)
 - [x] Fix API routing/rewrite strategy (`predeploy-api-routing`)
-- [ ] Wire judge Docker runtime securely (`predeploy-judge-runtime`)
+- [x] Wire judge Docker runtime securely (`predeploy-judge-runtime`)
 - [ ] Automate startup flow: migrate/collectstatic/start (`predeploy-startup-flow`)
 - [ ] Add health endpoint + container checks (`predeploy-healthchecks`)
 - [ ] Enforce production env guardrails (`predeploy-env-guardrails`)

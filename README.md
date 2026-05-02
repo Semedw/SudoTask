@@ -203,6 +203,7 @@ Submission flow:
 - Hidden testcase expected output is not exposed to students.
 - Auth uses httpOnly cookies (no JWT storage in browser localStorage).
 - Replace default `SECRET_KEY` and keep `DEBUG=False` in production.
+- **Docker Socket Hardening**: In production, the `celery` container requires access to `/var/run/docker.sock` to spawn isolated runner containers. This gives the `celery` container root-equivalent access to the host. It is strongly recommended to use **Rootless Docker** on your VPS and restrict the container's capabilities using AppArmor or SELinux profiles to mitigate potential breakouts.
 
 ## Useful commands
 

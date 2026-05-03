@@ -1,8 +1,10 @@
 from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model
+from django.core.exceptions import ImproperlyConfigured
 from django.views.decorators.csrf import ensure_csrf_cookie
 from rest_framework import generics, permissions, status
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.exceptions import APIException
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
@@ -11,12 +13,46 @@ from .serializers import RegisterSerializer, UserSerializer, UserProfileSerializ
 User = get_user_model()
 
 
+class AuthCookieConfigurationError(APIException):
+    status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    default_detail = 'Authentication is temporarily unavailable due to server configuration.'
+    default_code = 'auth_cookie_misconfigured'
+
+
+def _normalized_cookie_samesite() -> str:
+    raw = str(getattr(settings, 'AUTH_COOKIE_SAMESITE', '') or '').strip().lower()
+    mapping = {
+        'lax': 'Lax',
+        'strict': 'Strict',
+        'none': 'None',
+    }
+    if raw not in mapping:
+        raise ImproperlyConfigured('AUTH_COOKIE_SAMESITE must be one of: Lax, Strict, None.')
+    if raw == 'none' and not settings.AUTH_COOKIE_SECURE:
+        raise ImproperlyConfigured('AUTH_COOKIE_SECURE must be True when AUTH_COOKIE_SAMESITE is None.')
+    return mapping[raw]
+
+
+def _validated_cookie_domain() -> str | None:
+    value = getattr(settings, 'AUTH_COOKIE_DOMAIN', None)
+    if value is None:
+        return None
+    domain = str(value).strip()
+    if not domain:
+        return None
+    if '://' in domain or '/' in domain or ':' in domain or any(ch.isspace() for ch in domain):
+        raise ImproperlyConfigured(
+            'AUTH_COOKIE_DOMAIN must be a plain host/domain without scheme, path, port, or spaces.'
+        )
+    return domain
+
+
 def _cookie_options() -> dict:
     return {
         'httponly': True,
         'secure': settings.AUTH_COOKIE_SECURE,
-        'samesite': settings.AUTH_COOKIE_SAMESITE,
-        'domain': settings.AUTH_COOKIE_DOMAIN,
+        'samesite': _normalized_cookie_samesite(),
+        'domain': _validated_cookie_domain(),
         'path': '/',
     }
 
@@ -69,7 +105,10 @@ class RegisterView(generics.CreateAPIView):
             {'user': UserSerializer(user).data},
             status=status.HTTP_201_CREATED,
         )
-        _set_auth_cookies(response, refresh)
+        try:
+            _set_auth_cookies(response, refresh)
+        except ImproperlyConfigured as exc:
+            raise AuthCookieConfigurationError() from exc
         return response
 
 
@@ -94,7 +133,10 @@ class LoginView(APIView):
 
         refresh = RefreshToken.for_user(user)
         response = Response({'user': UserSerializer(user).data}, status=status.HTTP_200_OK)
-        _set_auth_cookies(response, refresh)
+        try:
+            _set_auth_cookies(response, refresh)
+        except ImproperlyConfigured as exc:
+            raise AuthCookieConfigurationError() from exc
         return response
 
 
@@ -113,12 +155,15 @@ class RefreshView(APIView):
             return Response({'detail': 'Invalid refresh token.'}, status=status.HTTP_401_UNAUTHORIZED)
 
         response = Response({'detail': 'Token refreshed.'}, status=status.HTTP_200_OK)
-        response.set_cookie(
-            settings.AUTH_ACCESS_COOKIE_NAME,
-            str(access),
-            max_age=int(settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'].total_seconds()),
-            **_cookie_options(),
-        )
+        try:
+            response.set_cookie(
+                settings.AUTH_ACCESS_COOKIE_NAME,
+                str(access),
+                max_age=int(settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'].total_seconds()),
+                **_cookie_options(),
+            )
+        except ImproperlyConfigured as exc:
+            raise AuthCookieConfigurationError() from exc
         return response
 
 
@@ -127,7 +172,10 @@ class LogoutView(APIView):
 
     def post(self, request):
         response = Response({'detail': 'Logged out.'}, status=status.HTTP_200_OK)
-        _clear_auth_cookies(response)
+        try:
+            _clear_auth_cookies(response)
+        except ImproperlyConfigured as exc:
+            raise AuthCookieConfigurationError() from exc
         return response
 
 

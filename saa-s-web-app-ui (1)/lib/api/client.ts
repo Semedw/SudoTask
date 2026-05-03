@@ -1,7 +1,29 @@
 import type { ApiError } from "@/lib/types"
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8001/api"
+function normalizeApiBaseUrl(rawBaseUrl?: string) {
+  const fallbackBase = "/api"
+  const base = (rawBaseUrl || fallbackBase).trim()
+  const withoutTrailingSlash = base.replace(/\/+$/, "")
+
+  if (!withoutTrailingSlash) return fallbackBase
+
+  // Keep absolute URLs untouched except for trailing slash cleanup.
+  if (/^https?:\/\//i.test(withoutTrailingSlash)) {
+    return withoutTrailingSlash
+  }
+
+  const withLeadingSlash = withoutTrailingSlash.startsWith("/")
+    ? withoutTrailingSlash
+    : `/${withoutTrailingSlash}`
+
+  if (withLeadingSlash === "/api" || withLeadingSlash.startsWith("/api/")) {
+    return withLeadingSlash
+  }
+
+  return `${withLeadingSlash}/api`
+}
+
+const API_BASE_URL = normalizeApiBaseUrl(process.env.NEXT_PUBLIC_API_BASE_URL)
 
 function getCsrfToken() {
   if (typeof document === "undefined") return null
@@ -74,6 +96,8 @@ async function request(
     ...(options.headers as Record<string, string>),
   }
 
+  const normalizedEndpoint = normalizeEndpoint(endpoint)
+
   if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS") {
     if (!headers["Content-Type"]) headers["Content-Type"] = "application/json"
     if (!headers["X-CSRFToken"]) {
@@ -86,7 +110,9 @@ async function request(
     }
   }
 
-  let res = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const url = `${API_BASE_URL}${normalizedEndpoint}`
+
+  let res = await fetch(url, {
     ...options,
     headers,
     credentials: "include",
@@ -95,7 +121,7 @@ async function request(
   if (res.status === 401 && endpoint !== "/auth/refresh/") {
     const refreshed = await refreshAccessToken()
     if (refreshed) {
-      res = await fetch(`${API_BASE_URL}${endpoint}`, {
+      res = await fetch(`${API_BASE_URL}${normalizedEndpoint}`, {
         ...options,
         headers,
         credentials: "include",
@@ -136,6 +162,18 @@ export const api = {
 
   delete: (endpoint: string, options?: RequestInit) =>
     request(endpoint, { ...options, method: "DELETE" }),
+}
+
+function normalizeEndpoint(endpoint: string) {
+  if (!endpoint) return "/"
+
+  const hasQuery = endpoint.includes("?")
+  const [rawPath, queryString = ""] = endpoint.split("?", 2)
+  const path = rawPath.startsWith("/") ? rawPath : `/${rawPath}`
+  const normalizedPath = path.endsWith("/") ? path : `${path}/`
+
+  if (!hasQuery) return normalizedPath
+  return `${normalizedPath}?${queryString}`
 }
 
 export function unwrapPaginated<T>(data: unknown): T[] {

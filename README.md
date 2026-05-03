@@ -55,7 +55,7 @@ pnpm dev
 ```
 
 Frontend: `http://localhost:3000`  
-Backend API: `http://localhost:8001/api`
+Backend API: `http://localhost:8000/api`
 
 ### Production compose profile
 
@@ -65,6 +65,10 @@ For production-oriented container defaults (Gunicorn runtime and no public DB/Re
 docker compose -f docker-compose.prod.yml up --build -d
 docker compose -f docker-compose.prod.yml exec web python manage.py migrate
 ```
+
+This profile starts the frontend service with `next build` + `next start` and publishes:
+- Frontend: `http://localhost:3000`
+- Backend API: `http://localhost:8001/api`
 
 ## Local development (without backend Docker container)
 
@@ -77,7 +81,7 @@ python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 python manage.py migrate
-python manage.py runserver 8001
+python manage.py runserver 8000
 ```
 
 In another terminal:
@@ -95,6 +99,7 @@ Create `.env` in project root (copy from `.env.example`):
 # Django
 SECRET_KEY=your-secret-key-here
 DEBUG=False
+LOCAL_DEV_MODE=False
 ALLOWED_HOSTS=your-domain.com
 CSRF_TRUSTED_ORIGINS=https://your-domain.com
 CORS_ALLOWED_ORIGINS=https://your-domain.com
@@ -116,6 +121,8 @@ SESSION_COOKIE_SECURE=True
 CSRF_COOKIE_SECURE=True
 SECURE_SSL_REDIRECT=True
 AUTH_COOKIE_SAMESITE=Lax
+# AUTH_COOKIE_SAMESITE allowed values: Lax, Strict, None
+# If AUTH_COOKIE_SAMESITE=None, AUTH_COOKIE_SECURE must be True
 
 # Judge limits
 JUDGE_DOCKER_IMAGE=python:3.11-slim
@@ -127,10 +134,14 @@ JUDGE_CPU_LIMIT=0.5
 Frontend optional (`saa-s-web-app-ui (1)/.env.local`):
 
 ```env
-NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8001/api
+# Recommended for direct API calls (without Next.js rewrite)
+NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000/api
 ```
 
+If `NEXT_PUBLIC_API_BASE_URL` is omitted, the frontend defaults to `/api` and relies on the Next.js rewrite in `next.config.mjs`.
+
 For local backend (outside Docker), override `.env` values:
+- `LOCAL_DEV_MODE=True`
 - `DB_HOST=localhost`, `DB_PORT=5433`
 - `CELERY_BROKER_URL=redis://localhost:6380/0`
 - `CELERY_RESULT_BACKEND=redis://localhost:6380/0`
@@ -161,7 +172,9 @@ SudoTask/
 
 ## API summary
 
-Base: `http://localhost:8001/api`
+Base: `http://localhost:8000/api`
+
+Both slashless and slash-terminated API paths are supported (for example, `/tasks` and `/tasks/`) to stay compatible with frontend/proxy URL normalization.
 
 - `GET /auth/csrf/`, `POST /auth/register/`, `POST /auth/login/`, `POST /auth/refresh/`, `POST /auth/logout/`
 - `GET /auth/me/`, `PATCH /auth/me/update/`
@@ -190,6 +203,7 @@ Submission flow:
 - Hidden testcase expected output is not exposed to students.
 - Auth uses httpOnly cookies (no JWT storage in browser localStorage).
 - Replace default `SECRET_KEY` and keep `DEBUG=False` in production.
+- **Docker Socket Hardening**: In production, the `celery` container requires access to `/var/run/docker.sock` to spawn isolated runner containers. This gives the `celery` container root-equivalent access to the host. It is strongly recommended to use **Rootless Docker** on your VPS and restrict the container's capabilities using AppArmor or SELinux profiles to mitigate potential breakouts.
 
 ## Useful commands
 

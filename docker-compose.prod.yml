@@ -41,8 +41,6 @@ services:
       DB_PORT: 5432
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
-    ports:
-      - "8001:8000"
 
   celery:
     build:
@@ -62,6 +60,35 @@ services:
       DB_PORT: 5432
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
+      JUDGE_WORKSPACE_DIR: /tmp/judge_workspace
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /tmp/judge_workspace:/tmp/judge_workspace
+
+  frontend:
+    build:
+      context: ./saa-s-web-app-ui (1)
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_started
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+      - frontend
 
 volumes:
   postgres_data:
+  caddy_data:
+  caddy_config:

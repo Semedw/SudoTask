@@ -2,8 +2,9 @@ import { api, unwrapPaginated } from "./client"
 import type { Task, TestCase, Criteria } from "@/lib/types"
 
 export async function getTasks(classId?: number) {
+  const base = "/tasks/"
   const params = classId ? `?class_id=${classId}` : ""
-  const data = await api.get(`/tasks/${params}`)
+  const data = await api.get(`${base}${params}`)
   return unwrapPaginated<Task>(data)
 }
 

@@ -64,7 +64,13 @@ class CodeRunner:
 
         image = images[language]
 
-        with tempfile.TemporaryDirectory() as workdir:
+        workspace_dir = getattr(settings, 'JUDGE_WORKSPACE_DIR', None)
+        if not workspace_dir:
+            workspace_dir = None
+        elif not os.path.exists(workspace_dir):
+            os.makedirs(workspace_dir, exist_ok=True)
+
+        with tempfile.TemporaryDirectory(dir=workspace_dir) as workdir:
             code_path = os.path.join(workdir, code_filename)
             input_path = os.path.join(workdir, 'input.txt')
 

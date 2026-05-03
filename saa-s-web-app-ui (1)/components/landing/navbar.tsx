@@ -10,13 +10,13 @@ export function LandingNavbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
-      <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 lg:px-8">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-            <Terminal className="h-4 w-4 text-primary-foreground" />
+    <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-md">
+      <nav className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6 lg:px-8">
+        <Link href="/" className="flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary shadow-md transform transition-transform hover:scale-105">
+            <Terminal className="h-5 w-5 text-primary-foreground" />
           </div>
-          <span className="text-lg font-bold text-foreground">SudoTask</span>
+          <span className="text-xl font-bold text-foreground">SudoTask</span>
         </Link>
 
         <div className="hidden items-center gap-8 md:flex">
@@ -29,25 +29,23 @@ export function LandingNavbar() {
         </div>
 
         <div className="hidden items-center gap-3 md:flex">
-          <ThemeToggle />
-          <Button variant="ghost" size="sm" asChild>
+          <Button variant="ghost" size="sm" className="rounded-full px-6" asChild>
             <Link href="/login">Log in</Link>
           </Button>
-          <Button size="sm" asChild>
+          <Button size="sm" className="rounded-full px-6 shadow-md hover:scale-105 transition-transform" asChild>
             <Link href="/register">Get Started</Link>
           </Button>
         </div>
 
         <div className="flex items-center gap-2 md:hidden">
-          <ThemeToggle />
-          <Button variant="ghost" size="icon" onClick={() => setMobileOpen(!mobileOpen)}>
+          <Button variant="ghost" size="icon" className="rounded-full" onClick={() => setMobileOpen(!mobileOpen)}>
             {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
         </div>
       </nav>
 
       {mobileOpen && (
-        <div className="border-t border-border bg-background px-4 py-4 md:hidden">
+        <div className="bg-background px-6 py-4 md:hidden rounded-b-3xl shadow-lg">
           <div className="flex flex-col gap-3">
             <Link href="#features" className="text-sm font-medium text-muted-foreground" onClick={() => setMobileOpen(false)}>
               Features
@@ -56,10 +54,10 @@ export function LandingNavbar() {
               Pricing
             </Link>
             <div className="flex flex-col gap-2 pt-2">
-              <Button variant="outline" size="sm" asChild>
+              <Button variant="outline" size="sm" className="rounded-full" asChild>
                 <Link href="/login">Log in</Link>
               </Button>
-              <Button size="sm" asChild>
+              <Button size="sm" className="rounded-full" asChild>
                 <Link href="/register">Get Started</Link>
               </Button>
             </div>

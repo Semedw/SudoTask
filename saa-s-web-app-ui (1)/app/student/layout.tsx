@@ -1,10 +1,11 @@
 "use client"
 
-import { StudentHeader } from "@/components/student/header"
 import { useAuth } from "@/lib/auth/useAuth"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
 import { Loader2 } from "lucide-react"
+import { MainSidebar } from "@/components/navigation/main-sidebar"
+import { RightPanel } from "@/components/navigation/right-panel"
 
 export default function StudentLayout({
   children,
@@ -40,9 +41,10 @@ export default function StudentLayout({
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <StudentHeader />
-      <main className="mx-auto max-w-5xl px-4 py-6 lg:px-8">{children}</main>
+    <div className="flex min-h-screen bg-background pl-[120px] pr-4 py-4 gap-6">
+      <MainSidebar />
+      <main className="flex-1 min-w-0 max-w-5xl mx-auto pt-2">{children}</main>
+      <RightPanel />
     </div>
   )
 }

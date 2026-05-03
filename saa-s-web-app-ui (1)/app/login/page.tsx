@@ -110,7 +110,7 @@ export default function LoginPage() {
   // ── Saved accounts + manual login view ──
   if (savedAccounts.length > 0 && !showManualLogin) {
     return (
-      <div className="flex min-h-screen flex-col bg-muted/30">
+      <div className="flex min-h-screen flex-col bg-background">
         <header className="flex items-center justify-between px-6 py-4">
           <Link href="/" className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
@@ -122,7 +122,7 @@ export default function LoginPage() {
         </header>
 
         <main className="flex flex-1 items-center justify-center px-4 pb-16">
-          <Card className="w-full max-w-md border-border">
+          <Card className="w-full max-w-md border-0 shadow-xl rounded-[2.5rem] bg-white overflow-hidden p-2">
             <CardHeader className="text-center">
               <CardTitle className="text-2xl text-foreground">Choose an account</CardTitle>
               <CardDescription>Click an account to sign in instantly</CardDescription>
@@ -201,7 +201,7 @@ export default function LoginPage() {
 
   // ── Default login form (no saved accounts / "use another account") ──
   return (
-    <div className="flex min-h-screen flex-col bg-muted/30">
+    <div className="flex min-h-screen flex-col bg-background">
       <header className="flex items-center justify-between px-6 py-4">
         <Link href="/" className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
@@ -213,7 +213,7 @@ export default function LoginPage() {
       </header>
 
       <main className="flex flex-1 items-center justify-center px-4 pb-16">
-        <Card className="w-full max-w-md border-border">
+        <Card className="w-full max-w-md border-0 shadow-xl rounded-[2.5rem] bg-white overflow-hidden p-2">
           <CardHeader className="text-center relative">
             {savedAccounts.length > 0 && (
               <Button
@@ -251,6 +251,7 @@ export default function LoginPage() {
                       defaultValue={prefilledEmail}
                       required
                       disabled={isLoading}
+                      className="rounded-2xl p-6 bg-secondary/50 border-0"
                     />
                   </div>
                   <div className="flex flex-col gap-2">
@@ -266,6 +267,7 @@ export default function LoginPage() {
                         placeholder="Enter your password"
                         required
                         disabled={isLoading}
+                        className="rounded-2xl p-6 bg-secondary/50 border-0 pr-12"
                       />
                       <Button
                         type="button"
@@ -279,7 +281,7 @@ export default function LoginPage() {
                       </Button>
                     </div>
                   </div>
-                  <Button type="submit" className="mt-2 w-full" disabled={isLoading}>
+                  <Button type="submit" className="mt-4 w-full rounded-full py-6 text-lg font-bold shadow-md hover:scale-[1.02] transition-transform" disabled={isLoading}>
                     {isLoading ? "Signing in..." : "Sign in as Teacher"}
                   </Button>
                 </form>
@@ -300,6 +302,7 @@ export default function LoginPage() {
                       defaultValue={prefilledEmail}
                       required
                       disabled={isLoading}
+                      className="rounded-2xl p-6 bg-secondary/50 border-0"
                     />
                   </div>
                   <div className="flex flex-col gap-2">
@@ -315,6 +318,7 @@ export default function LoginPage() {
                         placeholder="Enter your password"
                         required
                         disabled={isLoading}
+                        className="rounded-2xl p-6 bg-secondary/50 border-0 pr-12"
                       />
                       <Button
                         type="button"
@@ -328,7 +332,7 @@ export default function LoginPage() {
                       </Button>
                     </div>
                   </div>
-                  <Button type="submit" className="mt-2 w-full" disabled={isLoading}>
+                  <Button type="submit" className="mt-4 w-full rounded-full py-6 text-lg font-bold shadow-md hover:scale-[1.02] transition-transform" disabled={isLoading}>
                     {isLoading ? "Signing in..." : "Sign in as Student"}
                   </Button>
                 </form>

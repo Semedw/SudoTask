@@ -36,7 +36,6 @@ function SolveTaskPageContent() {
   
   const [language, setLanguage] = useState<Language>("python")
   const [code, setCode] = useState(STARTER_CODE.python)
-  const [activeTab, setActiveTab] = useState("description")
   const [submissionResult, setSubmissionResult] = useState<Submission | null>(null)
   const [isPolling, setIsPolling] = useState(false)
   const [activeRightTab, setActiveRightTab] = useState<"code" | "results">("code")
@@ -177,86 +176,127 @@ function SolveTaskPageContent() {
 
   if (isLoading || !task) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex h-screen items-center justify-center bg-background">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-          <p className="mt-4 text-sm text-muted-foreground">Loading task...</p>
+          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto opacity-30" />
+          <p className="mt-4 text-lg font-bold text-muted-foreground">Preparing workspace...</p>
         </div>
       </div>
     )
   }
 
   const difficultyColors = {
-    EASY: "bg-success/10 text-success border-success/20",
-    MEDIUM: "bg-warning/10 text-warning border-warning/20",
-    HARD: "bg-destructive/10 text-destructive border-destructive/20",
+    EASY: "bg-pastel-green text-green-900",
+    MEDIUM: "bg-pastel-orange text-orange-900",
+    HARD: "bg-pastel-pink text-pink-900",
   }
 
   return (
-    <div className="flex h-screen flex-col bg-background">
+    <div className="flex h-screen flex-col bg-background p-4 gap-4 overflow-hidden">
       {/* Top bar */}
-      <header className="flex h-12 shrink-0 items-center justify-between border-b border-border bg-background px-4">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
+      <header className="flex shrink-0 items-center justify-between bg-white rounded-3xl px-6 py-3 shadow-sm border-0">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50 hover:bg-secondary" asChild>
             <Link href="/student">
-              <ArrowLeft className="h-4 w-4" />
+              <ArrowLeft className="h-5 w-5" />
             </Link>
           </Button>
-          <Separator orientation="vertical" className="h-5" />
-          <div className="flex items-center gap-2">
-            <Terminal className="h-4 w-4 text-primary" />
-            <h1 className="truncate text-sm font-semibold text-foreground">{task.title}</h1>
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 bg-pastel-blue rounded-2xl flex items-center justify-center">
+               <Terminal className="h-5 w-5 text-blue-900" />
+            </div>
+            <div>
+              <h1 className="text-lg font-black text-foreground leading-none">{task.title}</h1>
+              <p className="text-xs font-bold text-muted-foreground uppercase mt-1 tracking-wider">{task.classroom.name}</p>
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {task.deadline && (
-            <div className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex">
-              <Clock className="h-3 w-3" />
-              <span>{new Date(task.deadline).toLocaleDateString()}</span>
-            </div>
-          )}
-          <ThemeToggle />
+        <div className="flex items-center gap-4">
+          <Select value={language} onValueChange={(val) => handleLanguageChange(val as Language)}>
+            <SelectTrigger className="w-[140px] rounded-full bg-secondary/50 border-0 font-bold h-10 shadow-sm px-4">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="rounded-2xl border-0 shadow-xl">
+              <SelectItem value="python">Python</SelectItem>
+              <SelectItem value="cpp">C++</SelectItem>
+              <SelectItem value="java">Java</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="flex gap-2">
+            <Button
+              variant="secondary"
+              className="rounded-full px-6 font-bold h-10 bg-pastel-blue/20 text-blue-900 hover:bg-pastel-blue/30 transition-all shadow-sm"
+              onClick={handleTest}
+              disabled={isSubmitting || isPolling || isTesting}
+            >
+              {isTesting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Testing
+                </>
+              ) : (
+                <>
+                  <Play className="mr-2 h-4 w-4 fill-current" />
+                  Run Test
+                </>
+              )}
+            </Button>
+            <Button
+              className="rounded-full px-8 font-black h-10 shadow-md hover:scale-[1.02] transition-transform"
+              onClick={handleSubmit}
+              disabled={isSubmitting || isPolling || isTesting}
+            >
+              {isSubmitting || isPolling ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {isSubmitting ? "Submitting" : "Grading"}
+                </>
+              ) : (
+                <>
+                  <Send className="mr-2 h-4 w-4" />
+                  Submit Code
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </header>
 
-      <div className="flex flex-1 flex-col overflow-hidden lg:flex-row">
+      <div className="flex flex-1 flex-col overflow-hidden lg:flex-row gap-4">
         {/* Left Panel - Task Description */}
-        <div className="flex w-full flex-col border-b border-border lg:w-[400px] lg:shrink-0 lg:border-b-0 lg:border-r">
-          <div className="flex-1 overflow-y-auto p-4">
-            <div className="flex flex-col gap-5">
+        <div className="flex w-full flex-col lg:w-[400px] lg:shrink-0 bg-white rounded-[2.5rem] shadow-sm overflow-hidden border-0">
+           <div className="flex items-center justify-between px-8 py-6 border-b border-secondary/50 bg-secondary/10">
+              <h2 className="text-xl font-bold text-foreground">Task Details</h2>
+              <Badge className={`rounded-full border-0 font-bold px-3 py-1 ${difficultyColors[task.difficulty]}`}>
+                {task.difficulty}
+              </Badge>
+           </div>
+          <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+            <div className="flex flex-col gap-8">
               <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <Badge variant="outline" className={difficultyColors[task.difficulty]}>
-                    {task.difficulty}
-                  </Badge>
-                  <span className="text-sm text-muted-foreground">{task.classroom.name}</span>
-                </div>
-                <h2 className="text-lg font-bold text-foreground mb-2">{task.title}</h2>
-                <div className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                <div className="whitespace-pre-wrap text-base leading-relaxed text-muted-foreground font-medium">
                   {task.description}
                 </div>
               </div>
 
               {testCases.length > 0 && (
                 <div>
-                  <h2 className="text-sm font-semibold text-foreground mb-3">Example Test Cases</h2>
-                  <div className="space-y-3">
+                  <h2 className="text-lg font-bold text-foreground mb-4">Example Cases</h2>
+                  <div className="space-y-4">
                     {testCases.map((tc, index) => (
-                      <Card key={tc.id} className="border-border">
-                        <CardContent className="p-3">
-                          <p className="text-xs font-medium text-muted-foreground mb-2">Example {index + 1}</p>
-                          <div className="space-y-2 text-xs">
-                            <div>
-                              <p className="text-muted-foreground mb-1">Input:</p>
-                              <pre className="bg-muted p-2 rounded overflow-x-auto">{tc.input_data}</pre>
-                            </div>
-                            <div>
-                              <p className="text-muted-foreground mb-1">Expected Output:</p>
-                              <pre className="bg-muted p-2 rounded overflow-x-auto">{tc.expected_output}</pre>
-                            </div>
+                      <div key={tc.id} className="bg-secondary/30 rounded-3xl p-5 border-0">
+                        <p className="text-xs font-black text-muted-foreground uppercase mb-3 tracking-widest">Example #{index + 1}</p>
+                        <div className="space-y-4">
+                          <div>
+                            <p className="text-[10px] font-black text-muted-foreground uppercase mb-1 px-1">Input</p>
+                            <pre className="bg-white/80 p-3 rounded-2xl text-xs font-mono overflow-x-auto border-0 shadow-sm">{tc.input_data}</pre>
                           </div>
-                        </CardContent>
-                      </Card>
+                          <div>
+                            <p className="text-[10px] font-black text-muted-foreground uppercase mb-1 px-1">Expected Output</p>
+                            <pre className="bg-white/80 p-3 rounded-2xl text-xs font-mono overflow-x-auto border-0 shadow-sm">{tc.expected_output}</pre>
+                          </div>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -266,403 +306,261 @@ function SolveTaskPageContent() {
         </div>
 
         {/* Right Panel - Code Editor + Results */}
-        <div className="flex flex-1 flex-col overflow-hidden">
-          {/* Toolbar */}
-          <div className="flex items-center justify-between border-b border-border bg-muted/30 px-4 py-2">
-            <div className="flex items-center gap-3">
-              <Select value={language} onValueChange={(val) => handleLanguageChange(val as Language)}>
-                <SelectTrigger className="w-[140px] h-8">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="python">Python</SelectItem>
-                  <SelectItem value="cpp">C++</SelectItem>
-                  <SelectItem value="java">Java</SelectItem>
-                </SelectContent>
-              </Select>
-              {submissionResult && (
-                <Badge
-                  variant={submissionResult.status === "passed" ? "default" : "destructive"}
-                  className={`gap-1 ${
-                    submissionResult.status === "passed"
-                      ? "bg-success/10 text-success border-success/20"
-                      : ""
-                  }`}
-                >
-                  {submissionResult.status === "passed" ? (
-                    <CheckCircle2 className="h-3 w-3" />
-                  ) : (
-                    <XCircle className="h-3 w-3" />
-                  )}
-                  {submissionResult.status === "passed" ? "Passed" : "Failed"}
-                  {" "}{submissionResult.score}%
-                </Badge>
-              )}
-              {isPolling && (
-                <Badge variant="secondary" className="gap-1">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  Evaluating...
-                </Badge>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex rounded-md border border-border text-xs">
-                <button
-                  onClick={() => setActiveRightTab("code")}
-                  className={`px-3 py-1.5 transition-colors ${
-                    activeRightTab === "code"
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  } rounded-l-md`}
-                >
-                  Code
-                </button>
-                <button
-                  onClick={() => setActiveRightTab("results")}
-                  className={`px-3 py-1.5 transition-colors ${
-                    activeRightTab === "results"
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  } rounded-r-md`}
-                >
-                  Results
-                  {submissionResult && (
-                    <span className="ml-1">
-                      ({submissionResult.passed_count}/{submissionResult.total_count})
-                    </span>
-                  )}
-                </button>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5"
-                onClick={handleTest}
-                disabled={isSubmitting || isPolling || isTesting}
+        <div className="flex flex-1 flex-col overflow-hidden bg-white rounded-[2.5rem] shadow-sm border-0 relative">
+          {/* Tabs for Code/Results */}
+          <div className="flex items-center px-6 pt-4 border-b border-secondary/50 shrink-0">
+             <button
+                onClick={() => setActiveRightTab("code")}
+                className={`px-8 py-4 text-sm font-bold transition-all relative ${
+                  activeRightTab === "code"
+                    ? "text-primary border-b-4 border-primary"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
               >
-                {isTesting ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Testing...
-                  </>
-                ) : (
-                  <>
-                    <Play className="h-3.5 w-3.5" />
-                    Test
-                  </>
-                )}
-              </Button>
-              <Button
-                variant="default"
-                size="sm"
-                className="gap-1.5"
-                onClick={handleSubmit}
-                disabled={isSubmitting || isPolling || isTesting}
+                Code Editor
+              </button>
+              <button
+                onClick={() => setActiveRightTab("results")}
+                className={`px-8 py-4 text-sm font-bold transition-all relative ${
+                  activeRightTab === "results"
+                    ? "text-primary border-b-4 border-primary"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
               >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Submitting...
-                  </>
-                ) : isPolling ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Running...
-                  </>
-                ) : (
-                  <>
-                    <Send className="h-3.5 w-3.5" />
-                    Submit
-                  </>
+                Output & Results
+                {(submissionResult || testResult) && (
+                   <span className="ml-2 bg-pastel-blue px-2 py-0.5 rounded-full text-[10px] text-blue-900 font-black">!</span>
                 )}
-              </Button>
-            </div>
+              </button>
           </div>
 
           {/* Code Tab */}
-          {activeRightTab === "code" && (
-            <div className="flex-1 overflow-hidden p-2">
-              <CodeEditor
-                value={code}
-                onChange={handleCodeChange}
-                language={language}
-                disabled={isSubmitting || isPolling}
-                placeholder="Write your solution here..."
-              />
-            </div>
-          )}
+          <div className={`flex-1 overflow-hidden p-6 ${activeRightTab === "code" ? "block" : "hidden"}`}>
+             <div className="h-full rounded-3xl overflow-hidden border border-secondary/50 shadow-inner bg-secondary/5 p-2">
+                <CodeEditor
+                  value={code}
+                  onChange={handleCodeChange}
+                  language={language}
+                  disabled={isSubmitting || isPolling}
+                  placeholder="Write your solution here..."
+                />
+             </div>
+          </div>
 
           {/* Results Tab */}
-          {activeRightTab === "results" && (
-            <div className="flex-1 overflow-y-auto p-4">
+          <div className={`flex-1 overflow-y-auto p-8 custom-scrollbar ${activeRightTab === "results" ? "block" : "hidden"}`}>
               {!submissionResult && !testResult && !isPolling && !isTesting && (
-                <div className="flex h-full items-center justify-center">
-                  <div className="text-center text-muted-foreground">
-                    <Send className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                    <p className="text-sm">Test or submit your code to see results here.</p>
+                <div className="flex h-full flex-col items-center justify-center gap-4 py-20">
+                  <div className="h-24 w-24 bg-pastel-blue/20 rounded-[2.5rem] flex items-center justify-center">
+                    <FlaskConical className="h-12 w-12 text-blue-900 opacity-40" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xl font-bold text-foreground">No results yet</p>
+                    <p className="text-muted-foreground font-medium">Run a test or submit your code to see the magic happen.</p>
                   </div>
                 </div>
               )}
 
               {(isPolling || isTesting) && !submissionResult && !testResult && (
-                <div className="flex h-full items-center justify-center">
+                <div className="flex h-full flex-col items-center justify-center gap-6 py-20">
+                  <div className="relative">
+                    <Loader2 className="h-20 w-20 animate-spin text-primary opacity-20" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                       <Terminal className="h-8 w-8 text-primary animate-pulse" />
+                    </div>
+                  </div>
                   <div className="text-center">
-                    <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto" />
-                    <p className="mt-3 text-sm text-muted-foreground">
-                      {isTesting ? "Testing against visible test cases..." : "Running your code against all test cases..."}
+                    <p className="text-xl font-bold text-foreground animate-pulse">
+                      {isTesting ? "Executing your test code..." : "Evaluating your submission..."}
                     </p>
+                    <p className="text-muted-foreground font-medium">Checking logic and test cases</p>
                   </div>
                 </div>
               )}
 
-              {/* --- TEST RESULTS (visible tests only) --- */}
+              {/* --- TEST RESULTS --- */}
               {testResult && !submissionResult && (
-                <div className="flex flex-col gap-4">
-                  <Card className={`border-2 ${
+                <div className="flex flex-col gap-6">
+                  <div className={`p-8 rounded-[2rem] shadow-sm border-0 flex flex-col gap-6 ${
                     testResult.passed_tests === testResult.total_tests
-                      ? "border-success/30 bg-success/5"
-                      : "border-warning/30 bg-warning/5"
+                      ? "bg-pastel-green"
+                      : "bg-pastel-orange"
                   }`}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="h-16 w-16 bg-white/50 rounded-3xl flex items-center justify-center shadow-sm">
                           {testResult.passed_tests === testResult.total_tests ? (
-                            <CheckCircle2 className="h-8 w-8 text-success" />
+                            <CheckCircle2 className="h-8 w-8 text-green-900" />
                           ) : (
-                            <AlertCircle className="h-8 w-8 text-warning" />
+                            <AlertCircle className="h-8 w-8 text-orange-900" />
                           )}
-                          <div>
-                            <p className="text-lg font-bold text-foreground">
-                              {testResult.passed_tests === testResult.total_tests
-                                ? "All Visible Tests Passed!"
-                                : "Some Visible Tests Failed"}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {testResult.passed_tests} of {testResult.total_tests} visible test cases passed
-                            </p>
-                          </div>
                         </div>
-                        <Badge variant="secondary" className="gap-1">
-                          <FlaskConical className="h-3 w-3" />
-                          Test Run
-                        </Badge>
+                        <div>
+                          <p className="text-2xl font-black text-current leading-tight">
+                            {testResult.passed_tests === testResult.total_tests
+                              ? "Excellent! Ready to submit?"
+                              : "Not quite there yet"}
+                          </p>
+                          <p className="text-sm font-bold opacity-70">
+                            {testResult.passed_tests} of {testResult.total_tests} visible tests passed
+                          </p>
+                        </div>
                       </div>
-                      <Progress
-                        value={testResult.total_tests > 0
-                          ? (testResult.passed_tests / testResult.total_tests) * 100
-                          : 0}
-                        className="mt-3 h-2"
-                      />
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        This only tests visible cases. Submit to run against all (including hidden) test cases.
-                      </p>
-                    </CardContent>
-                  </Card>
+                      <div className="text-right">
+                         <p className="text-5xl font-black">{Math.round((testResult.passed_tests / testResult.total_tests) * 100)}%</p>
+                         <p className="text-xs font-bold uppercase tracking-wider opacity-60">Visible Test Score</p>
+                      </div>
+                    </div>
+                    <Progress
+                      value={testResult.total_tests > 0 ? (testResult.passed_tests / testResult.total_tests) * 100 : 0}
+                      className="h-4 bg-white/30 rounded-full"
+                    />
+                  </div>
 
-                  <div className="flex flex-col gap-2">
+                  <div className="grid gap-4">
                     {testResult.results?.map((result, i) => (
-                      <Card
+                      <div
                         key={result.testcase?.id ?? i}
-                        className={`border ${
-                          result.passed ? "border-success/20" : "border-destructive/20"
-                        }`}
+                        className={`bg-white rounded-3xl p-6 shadow-sm border-l-8 border-0`}
+                        style={{ borderLeftColor: result.passed ? 'var(--pastel-green-dark, #86efac)' : 'var(--pastel-pink-dark, #f9a8d4)' }}
                       >
-                        <CardContent className="p-3">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                              {result.passed ? (
-                                <CheckCircle2 className="h-4 w-4 text-success" />
-                              ) : (
-                                <XCircle className="h-4 w-4 text-destructive" />
-                              )}
-                              <span className="text-sm font-medium">
-                                Test Case {result.testcase?.order}
-                              </span>
+                        <div className="flex items-center justify-between mb-6">
+                          <div className="flex items-center gap-3">
+                            <div className={`h-10 w-10 rounded-2xl flex items-center justify-center ${result.passed ? "bg-pastel-green" : "bg-pastel-pink"}`}>
+                              {result.passed ? <CheckCircle2 className="h-5 w-5 text-green-900" /> : <XCircle className="h-5 w-5 text-pink-900" />}
                             </div>
-                            <span className="text-xs text-muted-foreground">
-                              {result.runtime_ms ?? "—"}ms
-                            </span>
+                            <span className="text-lg font-bold">Case {result.testcase?.order}</span>
                           </div>
-                          <div className="space-y-1.5 text-xs">
-                            <div>
-                              <span className="text-muted-foreground">Input: </span>
-                              <pre className="mt-0.5 bg-muted p-1.5 rounded font-mono overflow-x-auto whitespace-pre-wrap">{result.testcase?.input_data}</pre>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Expected: </span>
-                              <pre className="mt-0.5 bg-muted p-1.5 rounded font-mono overflow-x-auto whitespace-pre-wrap">{result.expected_output}</pre>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Output: </span>
-                              <pre className={`mt-0.5 p-1.5 rounded font-mono overflow-x-auto whitespace-pre-wrap ${
-                                result.passed ? "bg-success/10" : "bg-destructive/10"
-                              }`}>{result.student_output || "(empty)"}</pre>
-                            </div>
-                            {result.stderr && (
-                              <div>
-                                <span className="text-destructive font-medium">Error: </span>
-                                <pre className="mt-0.5 bg-destructive/10 p-1.5 rounded font-mono overflow-x-auto whitespace-pre-wrap text-destructive">{result.stderr}</pre>
-                              </div>
-                            )}
+                          <Badge variant="secondary" className="rounded-full bg-secondary/50 font-bold">{result.runtime_ms ?? "—"}ms</Badge>
+                        </div>
+                        <div className="space-y-4">
+                          <div className="grid md:grid-cols-2 gap-4">
+                             <div>
+                                <p className="text-[10px] font-black text-muted-foreground uppercase mb-1 px-1">Input</p>
+                                <pre className="bg-secondary/30 p-3 rounded-2xl text-xs font-mono overflow-x-auto">{result.testcase?.input_data}</pre>
+                             </div>
+                             <div>
+                                <p className="text-[10px] font-black text-muted-foreground uppercase mb-1 px-1">Expected</p>
+                                <pre className="bg-secondary/30 p-3 rounded-2xl text-xs font-mono overflow-x-auto">{result.expected_output}</pre>
+                             </div>
                           </div>
-                        </CardContent>
-                      </Card>
+                          <div>
+                             <p className="text-[10px] font-black text-muted-foreground uppercase mb-1 px-1">Actual Output</p>
+                             <pre className={`p-4 rounded-2xl text-xs font-mono overflow-x-auto border-0 ${
+                               result.passed ? "bg-pastel-green/20" : "bg-pastel-pink/20 text-pink-900"
+                             }`}>{result.student_output || "(empty)"}</pre>
+                          </div>
+                          {result.stderr && (
+                            <div className="mt-2 bg-destructive/5 p-4 rounded-2xl border border-destructive/10">
+                              <p className="text-[10px] font-black text-destructive uppercase mb-2">Error Log</p>
+                              <pre className="text-xs font-mono overflow-x-auto text-destructive whitespace-pre-wrap">{result.stderr}</pre>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     ))}
                   </div>
-
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setActiveRightTab("code")}
-                    >
-                      Back to Code
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="gap-1.5"
-                      onClick={handleSubmit}
-                      disabled={isSubmitting || isPolling}
-                    >
-                      <Send className="h-3.5 w-3.5" />
-                      Submit for Full Score
-                    </Button>
-                  </div>
                 </div>
               )}
 
-              {/* --- SUBMISSION RESULTS (all tests) --- */}
+              {/* --- SUBMISSION RESULTS --- */}
               {submissionResult && (
-                <div className="flex flex-col gap-4">
-                  {/* Score summary */}
-                  <Card className={`border-2 ${
+                <div className="flex flex-col gap-8">
+                  <div className={`p-10 rounded-[2.5rem] shadow-sm flex flex-col gap-8 ${
                     submissionResult.status === "passed"
-                      ? "border-success/30 bg-success/5"
+                      ? "bg-pastel-green"
                       : submissionResult.status === "error"
-                      ? "border-warning/30 bg-warning/5"
-                      : "border-destructive/30 bg-destructive/5"
+                      ? "bg-pastel-blue"
+                      : "bg-pastel-pink"
                   }`}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-5">
+                        <div className="h-20 w-20 bg-white/50 rounded-[2rem] flex items-center justify-center shadow-sm">
                           {submissionResult.status === "passed" ? (
-                            <CheckCircle2 className="h-8 w-8 text-success" />
+                            <CheckCircle2 className="h-10 w-10 text-green-900" />
                           ) : submissionResult.status === "error" ? (
-                            <AlertCircle className="h-8 w-8 text-warning" />
+                            <AlertCircle className="h-10 w-10 text-blue-900" />
                           ) : (
-                            <XCircle className="h-8 w-8 text-destructive" />
+                            <XCircle className="h-10 w-10 text-pink-900" />
                           )}
-                          <div>
-                            <p className="text-lg font-bold text-foreground">
-                              {submissionResult.status === "passed"
-                                ? "All Tests Passed!"
-                                : submissionResult.status === "error"
-                                ? "Runtime Error"
-                                : "Some Tests Failed"}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {submissionResult.passed_count} of {submissionResult.total_count} test cases passed
-                            </p>
-                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-3xl font-bold text-foreground">{submissionResult.score}%</p>
-                          <p className="text-xs text-muted-foreground">{submissionResult.execution_time_ms}ms</p>
+                        <div>
+                          <p className="text-3xl font-black text-current leading-tight">
+                            {submissionResult.status === "passed"
+                              ? "Submission Passed!"
+                              : submissionResult.status === "error"
+                              ? "System Error Occurred"
+                              : "Review your logic"}
+                          </p>
+                          <p className="text-lg font-bold opacity-70">
+                            {submissionResult.passed_count} of {submissionResult.total_count} test cases passed
+                          </p>
                         </div>
                       </div>
-                      <Progress
-                        value={submissionResult.total_count > 0
-                          ? (submissionResult.passed_count / submissionResult.total_count) * 100
-                          : 0}
-                        className="mt-3 h-2"
-                      />
-                    </CardContent>
-                  </Card>
+                      <div className="text-right">
+                        <p className="text-7xl font-black">{submissionResult.score}%</p>
+                        <p className="text-sm font-bold uppercase tracking-wider opacity-60">Final Grade</p>
+                      </div>
+                    </div>
+                    <Progress
+                      value={submissionResult.total_count > 0 ? (submissionResult.passed_count / submissionResult.total_count) * 100 : 0}
+                      className="h-5 bg-white/30 rounded-full"
+                    />
+                  </div>
 
-                  {/* Global stderr from submission */}
-                  {submissionResult.stderr && (
-                    <Card className="border-destructive/30">
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <AlertCircle className="h-4 w-4 text-destructive" />
-                          <span className="text-sm font-medium text-destructive">Runtime Error</span>
-                        </div>
-                        <pre className="bg-destructive/10 p-3 rounded text-xs font-mono overflow-x-auto whitespace-pre-wrap text-destructive">
-                          {submissionResult.stderr}
-                        </pre>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {/* Individual test results */}
-                  <div className="flex flex-col gap-2">
+                  {/* Individual submission test results */}
+                  <div className="grid gap-4">
                     {submissionResult.test_results?.map((result) => (
-                      <Card
+                      <div
                         key={result.id}
-                        className={`border ${
-                          result.passed ? "border-success/20" : "border-destructive/20"
-                        }`}
+                        className="bg-white rounded-3xl p-6 shadow-sm border-l-8 border-0"
+                        style={{ borderLeftColor: result.passed ? 'var(--pastel-green-dark, #86efac)' : 'var(--pastel-pink-dark, #f9a8d4)' }}
                       >
-                        <CardContent className="p-3">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                              {result.passed ? (
-                                <CheckCircle2 className="h-4 w-4 text-success" />
-                              ) : (
-                                <XCircle className="h-4 w-4 text-destructive" />
-                              )}
-                              <span className="text-sm font-medium">
-                                Test Case {result.testcase?.order}
-                              </span>
-                              {result.testcase?.is_hidden && (
-                                <Badge variant="secondary" className="text-xs">Hidden</Badge>
-                              )}
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-3">
+                            <div className={`h-10 w-10 rounded-2xl flex items-center justify-center ${result.passed ? "bg-pastel-green" : "bg-pastel-pink"}`}>
+                              {result.passed ? <CheckCircle2 className="h-5 w-5 text-green-900" /> : <XCircle className="h-5 w-5 text-pink-900" />}
                             </div>
-                            <span className="text-xs text-muted-foreground">
-                              {result.runtime_ms ?? "—"}ms
-                            </span>
+                            <span className="text-lg font-bold">Case {result.testcase?.order}</span>
+                            {result.testcase?.is_hidden && (
+                              <Badge className="bg-secondary text-secondary-foreground border-0 text-[10px] font-bold h-5 uppercase">Hidden</Badge>
+                            )}
                           </div>
-                          <div className="space-y-1.5 text-xs">
+                          <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{result.runtime_ms ?? "—"}ms</span>
+                        </div>
+                        
+                        <div className="space-y-4">
+                          <div className="grid md:grid-cols-2 gap-4">
                             <div>
-                              <span className="text-muted-foreground">Input: </span>
-                              <pre className="mt-0.5 bg-muted p-1.5 rounded font-mono overflow-x-auto whitespace-pre-wrap">{result.testcase?.input_data}</pre>
+                              <p className="text-[10px] font-black text-muted-foreground uppercase mb-1 px-1 tracking-widest">Input</p>
+                              <pre className="bg-secondary/30 p-3 rounded-2xl text-xs font-mono overflow-x-auto whitespace-pre-wrap">{result.testcase?.input_data}</pre>
                             </div>
                             {!result.testcase?.is_hidden && result.expected_output && (
                               <div>
-                                <span className="text-muted-foreground">Expected: </span>
-                                <pre className="mt-0.5 bg-muted p-1.5 rounded font-mono overflow-x-auto whitespace-pre-wrap">{result.expected_output}</pre>
-                              </div>
-                            )}
-                            <div>
-                              <span className="text-muted-foreground">Output: </span>
-                              <pre className={`mt-0.5 p-1.5 rounded font-mono overflow-x-auto whitespace-pre-wrap ${
-                                result.passed ? "bg-success/10" : "bg-destructive/10"
-                              }`}>{result.student_output || "(empty)"}</pre>
-                            </div>
-                            {result.stderr && (
-                              <div>
-                                <span className="text-destructive font-medium">Error: </span>
-                                <pre className="mt-0.5 bg-destructive/10 p-1.5 rounded font-mono overflow-x-auto whitespace-pre-wrap text-destructive">{result.stderr}</pre>
+                                <p className="text-[10px] font-black text-muted-foreground uppercase mb-1 px-1 tracking-widest">Expected</p>
+                                <pre className="bg-secondary/30 p-3 rounded-2xl text-xs font-mono overflow-x-auto whitespace-pre-wrap">{result.expected_output}</pre>
                               </div>
                             )}
                           </div>
-                        </CardContent>
-                      </Card>
+                          <div>
+                            <p className="text-[10px] font-black text-muted-foreground uppercase mb-1 px-1 tracking-widest">Actual Output</p>
+                            <pre className={`p-4 rounded-2xl text-xs font-mono overflow-x-auto border-0 ${
+                              result.passed ? "bg-pastel-green/20" : "bg-pastel-pink/20 text-pink-900"
+                            }`}>{result.student_output || "(empty)"}</pre>
+                          </div>
+                          {result.stderr && (
+                            <div className="mt-2 bg-destructive/5 p-4 rounded-2xl border border-destructive/10">
+                              <p className="text-[10px] font-black text-destructive uppercase mb-2">Error Stream</p>
+                              <pre className="text-xs font-mono overflow-x-auto text-destructive whitespace-pre-wrap">{result.stderr}</pre>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     ))}
                   </div>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="self-start"
-                    onClick={() => setActiveRightTab("code")}
-                  >
-                    Back to Code
-                  </Button>
                 </div>
               )}
-            </div>
-          )}
+          </div>
         </div>
       </div>
     </div>
@@ -673,10 +571,10 @@ export default function SolveTaskPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex h-screen items-center justify-center">
+        <div className="flex h-screen items-center justify-center bg-background">
           <div className="text-center">
-            <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-            <p className="mt-4 text-sm text-muted-foreground">Loading task...</p>
+            <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto opacity-30" />
+            <p className="mt-4 text-lg font-bold text-muted-foreground">Initializing...</p>
           </div>
         </div>
       }

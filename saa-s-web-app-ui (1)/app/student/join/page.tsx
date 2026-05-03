@@ -39,45 +39,44 @@ export default function StudentJoinPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-muted/30">
+    <div className="flex min-h-screen flex-col bg-background">
       <header className="flex items-center justify-between px-6 py-4">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-            <Terminal className="h-4 w-4 text-primary-foreground" />
+        <Link href="/" className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary shadow-sm transform transition-transform hover:scale-105">
+            <Terminal className="h-5 w-5 text-primary-foreground" />
           </div>
-          <span className="text-lg font-bold text-foreground">SudoTask</span>
+          <span className="text-xl font-bold text-foreground">SudoTask</span>
         </Link>
-        <ThemeToggle />
       </header>
 
       <main className="flex flex-1 items-center justify-center px-4 pb-16">
-        <Card className="w-full max-w-md border-border">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl text-foreground">Join a Class</CardTitle>
-            <CardDescription>Enter the class code provided by your teacher</CardDescription>
+        <Card className="w-full max-w-md border-0 shadow-xl rounded-[2.5rem] bg-white overflow-hidden p-2">
+          <CardHeader className="text-center pt-10 pb-6 px-8">
+            <CardTitle className="text-3xl font-black text-foreground mb-2">Join a Class</CardTitle>
+            <CardDescription className="text-lg font-medium">Enter the class code provided by your teacher</CardDescription>
           </CardHeader>
-          <CardContent>
-            <form onSubmit={handleJoinClass} className="flex flex-col gap-4">
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="class-code">Class Code</Label>
+          <CardContent className="px-8 pb-10">
+            <form onSubmit={handleJoinClass} className="flex flex-col gap-6">
+              <div className="flex flex-col gap-3">
+                <Label htmlFor="class-code" className="text-sm font-bold text-muted-foreground uppercase tracking-widest px-1">Class Code</Label>
                 <Input 
                   id="class-code" 
                   placeholder="CLS-3A7K9" 
-                  className="font-mono uppercase" 
+                  className="rounded-2xl p-8 bg-secondary/50 border-0 font-mono font-bold text-xl uppercase text-center placeholder:text-muted-foreground/30 focus-visible:ring-pastel-blue" 
                   value={classCode}
                   onChange={(e) => setClassCode(e.target.value.toUpperCase())}
                   required
                   disabled={isJoining}
                 />
-                <p className="text-xs text-muted-foreground">Ask your teacher for the class code</p>
+                <p className="text-xs text-muted-foreground text-center font-medium mt-1 italic">Ask your teacher for the 8-character class code</p>
               </div>
-              <Button type="submit" className="mt-2 w-full" disabled={isJoining}>
+              <Button type="submit" className="mt-2 w-full rounded-full py-8 text-xl font-bold shadow-lg hover:scale-[1.02] transition-transform" disabled={isJoining}>
                 {isJoining ? "Joining..." : "Join Class"}
               </Button>
             </form>
-            <p className="mt-6 text-center text-sm text-muted-foreground">
-              Already have an account?{" "}
-              <Link href="/login" className="font-medium text-primary hover:underline">Sign in</Link>
+            <p className="mt-8 text-center text-sm font-medium text-muted-foreground">
+              {"Want to go back? "}
+              <Link href="/student" className="font-bold text-primary hover:underline">Return to Dashboard</Link>
             </p>
           </CardContent>
         </Card>

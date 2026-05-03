@@ -1,12 +1,11 @@
 "use client"
 
-import { TeacherSidebar } from "@/components/teacher/sidebar"
-import { TeacherHeader } from "@/components/teacher/header"
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { useAuth } from "@/lib/auth/useAuth"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
 import { Loader2 } from "lucide-react"
+import { MainSidebar } from "@/components/navigation/main-sidebar"
+import { RightPanel } from "@/components/navigation/right-panel"
 
 export default function TeacherLayout({
   children,
@@ -42,12 +41,10 @@ export default function TeacherLayout({
   }
 
   return (
-    <SidebarProvider>
-      <TeacherSidebar />
-      <SidebarInset>
-        <TeacherHeader />
-        <div className="flex-1 p-4 lg:p-6">{children}</div>
-      </SidebarInset>
-    </SidebarProvider>
+    <div className="flex min-h-screen bg-background pl-[120px] pr-4 py-4 gap-6">
+      <MainSidebar />
+      <main className="flex-1 min-w-0 max-w-5xl mx-auto pt-2">{children}</main>
+      <RightPanel />
+    </div>
   )
 }

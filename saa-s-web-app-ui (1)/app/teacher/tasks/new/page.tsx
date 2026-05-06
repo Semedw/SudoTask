@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Plus, Trash2, Eye, EyeOff, Save, ArrowLeft, X } from "lucide-react"
 import { toast } from "sonner"
@@ -14,6 +14,9 @@ import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import Link from "next/link"
+import { createTask } from "@/lib/api/tasks"
+import { getClasses } from "@/lib/api/classes"
+import type { ClassRoom, Task } from "@/lib/types"
 
 interface TestCase {
   id: number
@@ -31,6 +34,13 @@ interface Criteria {
 
 export default function NewTaskPage() {
   const router = useRouter()
+  const [classes, setClasses] = useState<ClassRoom[]>([])
+  const [isLoadingClasses, setIsLoadingClasses] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [title, setTitle] = useState("")
+  const [description, setDescription] = useState("")
+  const [difficulty, setDifficulty] = useState<Task["difficulty"]>("MEDIUM")
+  const [classroomId, setClassroomId] = useState("")
   const [tags, setTags] = useState<string[]>(["algorithms"])
   const [tagInput, setTagInput] = useState("")
   const [testCases, setTestCases] = useState<TestCase[]>([
@@ -42,6 +52,25 @@ export default function NewTaskPage() {
     { id: 3, name: "Edge Cases", points: 10 },
   ])
   const [preview, setPreview] = useState(false)
+
+  useEffect(() => {
+    async function fetchClasses() {
+      try {
+        setIsLoadingClasses(true)
+        const data = await getClasses()
+        setClasses(data)
+        if (data.length > 0) {
+          setClassroomId((current) => current || String(data[0].id))
+        }
+      } catch (error: any) {
+        toast.error(error?.message || "Failed to load classes")
+      } finally {
+        setIsLoadingClasses(false)
+      }
+    }
+
+    fetchClasses()
+  }, [])
 
   const addTag = () => {
     if (tagInput.trim() && !tags.includes(tagInput.trim())) {
@@ -79,9 +108,67 @@ export default function NewTaskPage() {
     setCriteria(criteria.filter((c) => c.id !== id))
   }
 
-  const handleSave = () => {
-    toast.success("Task saved successfully")
-    router.push("/teacher/tasks")
+  const handleSave = async () => {
+    if (!title.trim()) {
+      toast.error("Task title is required")
+      return
+    }
+
+    if (!description.trim()) {
+      toast.error("Task description is required")
+      return
+    }
+
+    if (!classroomId) {
+      toast.error("Please select a class")
+      return
+    }
+
+    const criteriaWithNames = criteria.filter((item) => item.name.trim())
+    const testCasesWithContent = testCases.filter(
+      (item) => item.input.trim() || item.expectedOutput.trim()
+    )
+
+    const hasIncompleteTestCase = testCasesWithContent.some(
+      (item) => !item.input.trim() || !item.expectedOutput.trim()
+    )
+    if (hasIncompleteTestCase) {
+      toast.error("Each test case must have both input and expected output")
+      return
+    }
+
+    try {
+      setIsSaving(true)
+      await createTask({
+        classroom_id: Number(classroomId),
+        title: title.trim(),
+        description: description.trim(),
+        difficulty,
+        tags,
+        criteria_items: criteriaWithNames.map((item) => ({
+          name: item.name.trim(),
+          points: Math.max(0, item.points),
+          description: "",
+        })),
+        testcases_items: testCasesWithContent.map((item, index) => ({
+          input_data: item.input.trim(),
+          expected_output: item.expectedOutput.trim(),
+          is_hidden: !item.isPublic,
+          weight_points: Math.max(0, item.points),
+          order: index + 1,
+        })),
+      })
+      toast.success("Task saved successfully")
+      router.push("/teacher/tasks")
+    } catch (error: any) {
+      const fieldErrors = error?.fieldErrors as Record<string, string[]> | undefined
+      const firstFieldError = fieldErrors
+        ? Object.values(fieldErrors)[0]?.[0]
+        : null
+      toast.error(firstFieldError || error?.message || "Failed to save task")
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -103,9 +190,9 @@ export default function NewTaskPage() {
             <Label htmlFor="preview-toggle" className="text-xs text-muted-foreground">Preview</Label>
             <Switch id="preview-toggle" checked={preview} onCheckedChange={setPreview} />
           </div>
-          <Button onClick={handleSave} className="gap-2">
+          <Button onClick={handleSave} className="gap-2" disabled={isSaving || isLoadingClasses}>
             <Save className="h-4 w-4" />
-            Save Task
+            {isSaving ? "Saving..." : "Save Task"}
           </Button>
         </div>
       </div>
@@ -121,7 +208,13 @@ export default function NewTaskPage() {
             <CardContent className="flex flex-col gap-4">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="title">Task Title</Label>
-                <Input id="title" placeholder="e.g., Binary Search Implementation" />
+                <Input
+                  id="title"
+                  placeholder="e.g., Binary Search Implementation"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  disabled={isSaving}
+                />
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="description">Description</Label>
@@ -130,32 +223,49 @@ export default function NewTaskPage() {
                   placeholder="Describe the task, constraints, and requirements..."
                   rows={8}
                   className="font-mono text-sm"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  disabled={isSaving}
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-2">
                   <Label>Difficulty</Label>
-                  <Select defaultValue="medium">
+                  <Select
+                    value={difficulty}
+                    onValueChange={(value) => setDifficulty(value as Task["difficulty"])}
+                    disabled={isSaving}
+                  >
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="Select difficulty" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="easy">Easy</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="hard">Hard</SelectItem>
+                      <SelectItem value="EASY">Easy</SelectItem>
+                      <SelectItem value="MEDIUM">Medium</SelectItem>
+                      <SelectItem value="HARD">Hard</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label>Class</Label>
-                  <Select defaultValue="dsa">
+                  <Select
+                    value={classroomId}
+                    onValueChange={setClassroomId}
+                    disabled={isSaving || isLoadingClasses}
+                  >
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue
+                        placeholder={
+                          isLoadingClasses ? "Loading classes..." : "Select class"
+                        }
+                      />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="dsa">Data Structures & Algorithms</SelectItem>
-                      <SelectItem value="python">Introduction to Python</SelectItem>
-                      <SelectItem value="web">Web Development 101</SelectItem>
+                      {classes.map((classItem) => (
+                        <SelectItem key={classItem.id} value={String(classItem.id)}>
+                          {classItem.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -180,6 +290,7 @@ export default function NewTaskPage() {
                     placeholder="Add a tag..."
                     value={tagInput}
                     onChange={(e) => setTagInput(e.target.value)}
+                    disabled={isSaving}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault()
@@ -187,7 +298,7 @@ export default function NewTaskPage() {
                       }
                     }}
                   />
-                  <Button variant="outline" onClick={addTag}>Add</Button>
+                  <Button variant="outline" onClick={addTag} disabled={isSaving}>Add</Button>
                 </div>
               </div>
             </CardContent>
@@ -207,6 +318,7 @@ export default function NewTaskPage() {
                     onChange={(e) =>
                       setCriteria(criteria.map((cr) => (cr.id === c.id ? { ...cr, name: e.target.value } : cr)))
                     }
+                    disabled={isSaving}
                     className="flex-1"
                   />
                   <Input
@@ -218,13 +330,14 @@ export default function NewTaskPage() {
                         criteria.map((cr) => (cr.id === c.id ? { ...cr, points: parseInt(e.target.value) || 0 } : cr))
                       )
                     }
+                    disabled={isSaving}
                     className="w-24"
                   />
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => removeCriteria(c.id)}
-                    disabled={criteria.length <= 1}
+                    disabled={criteria.length <= 1 || isSaving}
                     className="shrink-0 text-muted-foreground hover:text-destructive"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -253,7 +366,7 @@ export default function NewTaskPage() {
                   <CardTitle className="text-foreground">Test Cases</CardTitle>
                   <CardDescription>Define input/output pairs for grading</CardDescription>
                 </div>
-                <Button size="sm" onClick={addTestCase} className="gap-1.5">
+                <Button size="sm" onClick={addTestCase} className="gap-1.5" disabled={isSaving}>
                   <Plus className="h-3.5 w-3.5" />
                   Add Test Case
                 </Button>
@@ -289,7 +402,7 @@ export default function NewTaskPage() {
                           size="icon"
                           className="h-7 w-7 text-muted-foreground hover:text-destructive"
                           onClick={() => removeTestCase(tc.id)}
-                          disabled={testCases.length <= 1}
+                          disabled={testCases.length <= 1 || isSaving}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
@@ -302,6 +415,7 @@ export default function NewTaskPage() {
                         value={tc.input}
                         onChange={(e) => updateTestCase(tc.id, "input", e.target.value)}
                         rows={2}
+                        disabled={isSaving}
                         className="font-mono text-sm"
                       />
                     </div>
@@ -312,6 +426,7 @@ export default function NewTaskPage() {
                         value={tc.expectedOutput}
                         onChange={(e) => updateTestCase(tc.id, "expectedOutput", e.target.value)}
                         rows={2}
+                        disabled={isSaving}
                         className="font-mono text-sm"
                       />
                     </div>
@@ -321,6 +436,7 @@ export default function NewTaskPage() {
                         type="number"
                         value={tc.points}
                         onChange={(e) => updateTestCase(tc.id, "points", parseInt(e.target.value) || 0)}
+                        disabled={isSaving}
                         className="w-24"
                       />
                     </div>

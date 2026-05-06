@@ -10,6 +10,8 @@ docker compose up --build -d
 docker compose exec web python manage.py migrate
 ```
 
+The `web` service startup runs `python manage.py collectstatic --noinput` before Gunicorn so `/static/admin/*` assets are served.
+
 3. Optional:
 
 ```bash
@@ -51,6 +53,8 @@ pip install -r requirements.txt
 python manage.py migrate
 python manage.py runserver 8001
 ```
+
+If your root `.env` still uses Docker defaults (`DB_HOST=db`, `DB_PORT=5432`), local backend commands now auto-fallback to `localhost:5433` outside containers.
 
 In another terminal:
 

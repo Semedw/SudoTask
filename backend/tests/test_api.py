@@ -2,6 +2,7 @@ import pytest
 from django.urls import reverse
 from django.test import override_settings
 from rest_framework import status
+from tasks.models import Task, Criteria, TestCase
 
 pytestmark = pytest.mark.django_db
 
@@ -263,6 +264,51 @@ class TestTaskEndpoints:
         response = authenticated_client.post(url, data, format='json')
         assert response.status_code == status.HTTP_201_CREATED
         assert response.data['title'] == 'New Test Task'
+
+    def test_create_task_with_nested_criteria_and_testcases(self, authenticated_client, classroom):
+        url = reverse('task-list')
+        data = {
+            'classroom_id': classroom.id,
+            'title': 'Task With Nested Data',
+            'description': 'Task created with criteria and testcases',
+            'difficulty': 'MEDIUM',
+            'criteria_items': [
+                {'name': 'Correctness', 'points': 70, 'description': 'Must pass all cases'},
+                {'name': 'Code style', 'points': 30, 'description': 'Readable code'},
+            ],
+            'testcases_items': [
+                {'input_data': '2', 'expected_output': '4', 'is_hidden': False, 'weight_points': 20},
+                {'input_data': '10', 'expected_output': '100', 'is_hidden': True, 'weight_points': 80},
+            ],
+        }
+
+        response = authenticated_client.post(url, data, format='json')
+
+        assert response.status_code == status.HTTP_201_CREATED
+        created_task = Task.objects.get(id=response.data['id'])
+        assert Criteria.objects.filter(task=created_task).count() == 2
+        assert TestCase.objects.filter(task=created_task).count() == 2
+
+    def test_create_task_rolls_back_when_nested_data_is_invalid(self, authenticated_client, classroom):
+        url = reverse('task-list')
+        data = {
+            'classroom_id': classroom.id,
+            'title': 'Task Should Roll Back',
+            'description': 'Task creation should fail',
+            'difficulty': 'MEDIUM',
+            'criteria_items': [
+                {'name': 'Correctness', 'points': 70},
+            ],
+            'testcases_items': [
+                {'input_data': '2', 'expected_output': '4', 'order': 1},
+                {'input_data': '3', 'expected_output': '9', 'order': 1},
+            ],
+        }
+
+        response = authenticated_client.post(url, data, format='json')
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert Task.objects.filter(title='Task Should Roll Back').count() == 0
 
     def test_create_task_student_forbidden(self, student_client, classroom):
         url = reverse('task-list')

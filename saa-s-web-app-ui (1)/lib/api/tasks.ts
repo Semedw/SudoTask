@@ -13,13 +13,24 @@ export async function getTask(id: number) {
 }
 
 export async function createTask(payload: {
-  
   classroom_id: number
   title: string
   description: string
-  difficulty?: string
+  difficulty?: "EASY" | "MEDIUM" | "HARD"
   tags?: string[]
   deadline?: string | null
+  criteria_items?: Array<{
+    name: string
+    points: number
+    description?: string
+  }>
+  testcases_items?: Array<{
+    input_data: string
+    expected_output: string
+    is_hidden?: boolean
+    weight_points?: number
+    order?: number
+  }>
 }) {
   return (await api.post("/tasks/", payload)) as Task
 }

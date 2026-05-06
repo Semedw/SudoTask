@@ -51,6 +51,20 @@ def validate_auth_cookie_domain(value: str | None) -> str | None:
     return domain
 
 
+def running_in_container() -> bool:
+    return os.path.exists('/.dockerenv')
+
+
+def resolve_database_host_port(host: str | None, port: str | None, *, in_container: bool) -> tuple[str, str]:
+    resolved_host = (host or 'localhost').strip() or 'localhost'
+    resolved_port = str(port or '5433').strip() or '5433'
+
+    if not in_container and resolved_host == 'db' and resolved_port == '5432':
+        return 'localhost', '5433'
+
+    return resolved_host, resolved_port
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
@@ -97,6 +111,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -136,14 +151,20 @@ WSGI_APPLICATION = 'sudotask.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
+DATABASE_HOST, DATABASE_PORT = resolve_database_host_port(
+    os.getenv('DB_HOST', 'localhost'),
+    os.getenv('DB_PORT', '5433'),
+    in_container=running_in_container(),
+)
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.getenv('DB_NAME', 'sudotask'),
         'USER': os.getenv('DB_USER', 'admin'),
         'PASSWORD': os.getenv('DB_PASSWORD', 'admin'),
-        'HOST': os.getenv('DB_HOST', 'localhost'),
-        'PORT': os.getenv('DB_PORT', '5433'),
+        'HOST': DATABASE_HOST,
+        'PORT': DATABASE_PORT,
     }
 }
 
@@ -186,8 +207,16 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field

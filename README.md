@@ -40,6 +40,8 @@ docker-compose up --build -d
 docker-compose exec web python manage.py migrate
 ```
 
+`web` startup now runs `python manage.py collectstatic --noinput` before Gunicorn, so Django admin/static assets are served in containerized runtime.
+
 Optional:
 
 ```bash
@@ -65,6 +67,8 @@ For production-oriented container defaults (Gunicorn runtime and no public DB/Re
 docker compose -f docker-compose.prod.yml up --build -d
 docker compose -f docker-compose.prod.yml exec web python manage.py migrate
 ```
+
+The production `web` command also runs `collectstatic --noinput` before Gunicorn.
 
 This profile starts the frontend service with `next build` + `next start` and publishes:
 - Frontend: `http://localhost:3000`
@@ -153,6 +157,8 @@ For local backend (outside Docker), override `.env` values:
 - `SESSION_COOKIE_SECURE=False`
 - `CSRF_COOKIE_SECURE=False`
 - `SECURE_SSL_REDIRECT=False`
+
+If you run backend commands locally while `.env` still has Docker defaults (`DB_HOST=db`, `DB_PORT=5432`), backend settings now auto-fallback to `localhost:5433` for non-container processes.
 
 ## Project layout (short)
 
